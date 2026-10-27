@@ -7,6 +7,35 @@ export default function ExamplesModal({ isOpen, onClose, onSelectExample }) {
 
   const examples = [
     {
+      id: 'ex-traffic-flow',
+      title: '🚗 Red de Flujo Vehicular (Tránsito en Calles)',
+      desc: '4 intersecciones con conservación de flujo (Entrada = Salida). Ideal para ver el modelo de Flujo Vehicular en acción.',
+      badge: '🚗 Flujo Vehicular',
+      color: 'blue',
+      A: [
+        ['1', '-1', '0', '0'],
+        ['0', '1', '-1', '0'],
+        ['0', '0', '1', '-1'],
+        ['-1', '0', '0', '1']
+      ],
+      b: ['-100', '100', '50', '-50'],
+      systemTex: '\\begin{cases} x_1 - x_2 = -100 \\\\ x_2 - x_3 = 100 \\\\ x_3 - x_4 = 50 \\\\ -x_1 + x_4 = -50 \\end{cases}'
+    },
+    {
+      id: 'ex-chemical-balance',
+      title: '⚗️ Balance de Reacción Química (Estequiometría)',
+      desc: 'Combustión de metano CH₄ + O₂ → CO₂ + H₂O. Al presionar Balance Químico se obtienen los coeficientes enteros mínimos.',
+      badge: '⚗️ Química',
+      color: 'purple',
+      A: [
+        ['1', '0', '-1', '0'],
+        ['4', '0', '0', '-2'],
+        ['0', '2', '-2', '-1']
+      ],
+      b: ['0', '0', '0'],
+      systemTex: '\\begin{cases} x_1 - x_3 = 0 \\quad (\\text{Carbono}) \\\\ 4x_1 - 2x_4 = 0 \\quad (\\text{Hidrógeno}) \\\\ 2x_2 - 2x_3 - x_4 = 0 \\quad (\\text{Oxígeno}) \\end{cases}'
+    },
+    {
       id: 'ex-3x2-user',
       title: 'Sistema 3×2 (3 Ecuaciones, 2 Incógnitas)',
       desc: 'Solución única entera: x = 3, y = -1 (solo variables x e y, sin z)',

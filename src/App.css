@@ -1409,57 +1409,51 @@
   transform: translateY(-1px);
 }
 
-/* Fraction Pause Card */
-.fraction-pause-card {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(15, 23, 42, 0.85));
-  border: 2px solid #f59e0b;
+.post-solution-context-box {
+  margin-top: 18px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: var(--radius-md);
-  padding: 20px 24px;
-  margin-top: 14px;
-  margin-bottom: 20px;
-  box-shadow: 0 0 25px rgba(245, 158, 11, 0.2);
+  padding: 16px 18px;
 }
 
-.fraction-pause-banner {
+.context-selection-header-row {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
-.fraction-pause-icon {
-  font-size: 2rem;
-  line-height: 1;
-}
-
-.fraction-pause-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #fbbf24;
-  margin-bottom: 4px;
-}
-
-.fraction-pause-subtitle {
-  font-size: 0.9rem;
-  color: #e2e8f0;
+.context-selection-help {
+  font-size: 0.84rem;
+  color: #cbd5e1;
+  margin-bottom: 12px;
   line-height: 1.45;
 }
 
-.fraction-pause-buttons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
+.current-context-tag {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid #f59e0b;
+  color: #fef08a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
 }
 
-.pause-choice-btn {
-  padding: 14px 18px;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  background: rgba(15, 23, 42, 0.9);
+.bottom-context-section {
+  margin-top: 24px;
+  margin-bottom: 24px;
 }
 
-.pause-choice-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+.bottom-context-box {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .context-btn.btn-traffic.active {
@@ -1499,6 +1493,90 @@
 .btn-reset-context:hover {
   color: #f1f5f9;
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Applied Context Showcase Card */
+.applied-context-showcase {
+  margin-top: 18px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.vehicular-showcase {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(15, 23, 42, 0.95));
+  border: 1.5px solid rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.2);
+}
+
+.chemical-showcase {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(15, 23, 42, 0.95));
+  border: 1.5px solid rgba(192, 132, 252, 0.6);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+}
+
+.applied-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.applied-badge {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 0.3px;
+}
+
+.applied-desc {
+  font-size: 0.86rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.applied-vars-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.applied-var-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.app-var-name {
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.app-var-eq {
+  color: #64748b;
+  font-weight: bold;
+}
+
+.app-var-num {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.chemical-showcase .app-var-num {
+  color: #c084fc;
+}
+
+.app-var-unit {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-left: auto;
 }
 
 /* Scaled integer solution for Inverse Matrix */
