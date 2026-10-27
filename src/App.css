@@ -1495,6 +1495,14 @@
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+.steps-context-indicator {
+  display: block;
+  font-size: 0.8rem;
+  color: #38bdf8;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
 /* Applied Context Showcase Card */
 .applied-context-showcase {
   margin-top: 18px;
@@ -1537,10 +1545,76 @@
   margin-bottom: 14px;
 }
 
+/* Applied steps flow inside showcase */
+.applied-steps-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.applied-substep {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.applied-substep.highlight-step {
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.applied-substep-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.substep-badge {
+  background: rgba(59, 130, 246, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.substep-badge.alert {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+}
+
+.substep-text {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.substep-formula {
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+}
+
 .applied-vars-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
+  margin-top: 8px;
 }
 
 .applied-var-card {

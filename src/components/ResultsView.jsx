@@ -14,6 +14,7 @@ import MathView from './MathView';
 
 export default function ResultsView({
   result,
+  activeMethod,
   methodName,
   numFormat,
   decimalPlaces,
@@ -99,66 +100,69 @@ export default function ResultsView({
   };
 
   const isDec = numFormat === 'decimal';
+  const isGaussMethod = activeMethod === 'gauss' || activeMethod === 'gaussJordan';
 
-  const renderContextBox = (isBottom = false) => (
-    <div className={`context-selection-box ${isBottom ? 'bottom-context-box' : 'post-solution-context-box'}`}>
-      <div className="context-selection-header-row">
-        <span className="context-selection-label">
-          {isBottom
-            ? '🎯 ¿Deseas aplicar esta solución a Flujo Vehicular o Balance Químico?'
-            : '⚡ ¿Deseas ajustar este resultado a números naturales / enteros?'}
-        </span>
-        {result.context && (
-          <span className="current-context-tag">
-            Contexto activo: {result.context === 'vehicular' ? '🚗 Flujo vehicular' : '⚗️ Balance químico'}
+  const renderContextBox = (isBottom = false) => {
+    if (!isGaussMethod) return null;
+
+    return (
+      <div className={`context-selection-box ${isBottom ? 'bottom-context-box' : 'post-solution-context-box'}`}>
+        <div className="context-selection-header-row">
+          <span className="context-selection-label">
+            🎯 Opciones adicionales del problema:
           </span>
-        )}
-      </div>
-      <p className="context-selection-help">
-        {result.context === 'vehicular'
-          ? 'Modelo de Flujo Vehicular: En redes de tránsito e intersecciones, cada incógnita representa el flujo de vehículos por unidad de tiempo. El sistema se escaló a enteros positivos para garantizar cantidades físicas coherentes (> 0).'
-          : result.context === 'quimico'
-          ? 'Modelo de Balance Químico: En reacciones químicas, los coeficientes estequiométricos representan la menor proporción entera de moléculas que conservan la materia.'
-          : 'Después de resolver el sistema de ecuaciones por este método, abajo tienes la opción de reorientar el resultado a Flujo Vehicular o Balance Químico para obtener números naturales/enteros:'}
-      </p>
-      <div className="context-buttons-row">
-        <button
-          type="button"
-          className={`context-btn btn-traffic ${result.context === 'vehicular' ? 'active' : ''}`}
-          onClick={() => onContextChange?.('vehicular')}
-          title="Ajustar solución al contexto de Flujo Vehicular (números naturales/enteros positivos)"
-        >
-          <span className="context-emoji">🚗</span>
-          <div className="context-btn-text">
-            <strong>Flujo vehicular</strong>
-            <small>Tránsito y flujos en redes (enteros &gt; 0)</small>
-          </div>
-        </button>
-        <button
-          type="button"
-          className={`context-btn btn-chemical ${result.context === 'quimico' ? 'active' : ''}`}
-          onClick={() => onContextChange?.('quimico')}
-          title="Ajustar solución al contexto de Balance Químico (coeficientes estequiométricos naturales)"
-        >
-          <span className="context-emoji">⚗️</span>
-          <div className="context-btn-text">
-            <strong>Balance químico</strong>
-            <small>Reacciones estequiométricas (enteros mínimos)</small>
-          </div>
-        </button>
-        {result.context && (
+          {result.context && (
+            <span className="current-context-tag">
+              Contexto activo: {result.context === 'vehicular' ? '🚗 Flujo vehicular' : '⚗️ Balance químico'}
+            </span>
+          )}
+        </div>
+        <p className="context-selection-help">
+          {result.context === 'vehicular'
+            ? 'Modelo de Flujo Vehicular: En redes de tránsito e intersecciones, cada incógnita representa el flujo de vehículos por unidad de tiempo. El sistema se escaló a enteros positivos para garantizar cantidades físicas coherentes (> 0).'
+            : result.context === 'quimico'
+            ? 'Modelo de Balance Químico: En reacciones químicas, los coeficientes estequiométricos representan la menor proporción entera de moléculas que conservan la materia.'
+            : 'Tras completar la solución por este método, puedes seleccionar una de las siguientes opciones para iniciar el procedimiento matemático aplicado correspondiente:'}
+        </p>
+        <div className="context-buttons-row">
           <button
             type="button"
-            className="context-btn btn-reset-context"
-            onClick={() => onContextChange?.(null)}
-            title="Restablecer solución matemática original"
+            className={`context-btn btn-traffic ${result.context === 'vehicular' ? 'active' : ''}`}
+            onClick={() => onContextChange?.('vehicular')}
+            title="Ajustar solución al contexto de Flujo Vehicular (números naturales/enteros positivos)"
           >
-            <span>Restablecer solución original</span>
+            <span className="context-emoji">🚗</span>
+            <div className="context-btn-text">
+              <strong>Flujo vehicular</strong>
+              <small>Tránsito y flujos en redes (enteros &gt; 0)</small>
+            </div>
           </button>
-        )}
+          <button
+            type="button"
+            className={`context-btn btn-chemical ${result.context === 'quimico' ? 'active' : ''}`}
+            onClick={() => onContextChange?.('quimico')}
+            title="Ajustar solución al contexto de Balance Químico (coeficientes estequiométricos naturales)"
+          >
+            <span className="context-emoji">⚗️</span>
+            <div className="context-btn-text">
+              <strong>Balance químico</strong>
+              <small>Reacciones estequiométricas (enteros mínimos)</small>
+            </div>
+          </button>
+          {result.context && (
+            <button
+              type="button"
+              className="context-btn btn-reset-context"
+              onClick={() => onContextChange?.(null)}
+              title="Restablecer solución matemática original"
+            >
+              <span>Restablecer solución original</span>
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="results-container">
@@ -239,26 +243,88 @@ export default function ResultsView({
                   )
                   .join(' \\\\ ')} \\end{pmatrix}`}
               />
+              <div className="solution-boxed-inline-summary">
+                <MathView
+                  block
+                  math={`\\boxed{${result.solution
+                    .map((s) => `${s.variable} = ${isDec ? s.fraction.toTex(true, decimalPlaces) : s.fraction.toTex(false)}`)
+                    .join(', \\quad ')}}`}
+                />
+              </div>
             </div>
 
             {/* Context Application Banner if active */}
             {result.context === 'vehicular' && (
               <div className="applied-context-showcase vehicular-showcase">
                 <div className="applied-header">
-                  <span className="applied-badge">🚗 Modelo Aplicado: Flujo Vehicular en Red Vial</span>
+                  <span className="applied-badge">🚗 Procedimiento Matemático: Modelo de Flujo Vehicular en Red Vial</span>
                 </div>
                 <p className="applied-desc">
-                  En ingeniería de tránsito y redes viales (calles e intersecciones), las incógnitas representan el caudal vehicular (vehículos/hora). Dado que los vehículos son unidades enteras indivisibles y respetan el sentido de circulación, la solución se interpreta en <strong>enteros naturales (&gt; 0)</strong>:
+                  En ingeniería de tránsito y redes viales (calles e intersecciones), las incógnitas representan el caudal vehicular (vehículos/hora). Dado que los vehículos son unidades enteras indivisibles y respetan el sentido de circulación, se desarrolla el procedimiento físico y estequiométrico del modelo:
                 </p>
-                <div className="applied-vars-grid">
-                  {result.solution.map((item, idx) => (
-                    <div key={idx} className="applied-var-card">
-                      <span className="app-var-name"><MathView math={item.variable} /></span>
-                      <span className="app-var-eq">=</span>
-                      <span className="app-var-num">{item.fraction.abs().toTex(false)}</span>
-                      <span className="app-var-unit">vehículos / hora</span>
+
+                {/* Sub-pasos matemáticos del modelo vial */}
+                <div className="applied-steps-flow">
+                  <div className="applied-substep">
+                    <div className="applied-substep-header">
+                      <span className="substep-badge">Paso 1</span>
+                      <strong>Principio de Conservación de Flujo en Intersecciones (Nodos)</strong>
                     </div>
-                  ))}
+                    <p className="substep-text">
+                      En cada intersección vial, el volumen total de vehículos que ingresa debe ser igual al volumen que sale (Ley de conservación de caudales):
+                    </p>
+                    <div className="substep-formula">
+                      <MathView block math={`\\sum q_{\\text{entrante}} = \\sum q_{\\text{saliente}} \\implies A \\cdot \\vec{X} = \\vec{B}`} />
+                    </div>
+                  </div>
+
+                  <div className="applied-substep">
+                    <div className="applied-substep-header">
+                      <span className="substep-badge">Paso 2</span>
+                      <strong>Solución Matemática Inicial del Sistema</strong>
+                    </div>
+                    <p className="substep-text">
+                      A partir de la eliminación del método seleccionado se obtuvo el vector numérico:
+                    </p>
+                    <div className="substep-formula">
+                      <MathView block math={`\\vec{X} = \\begin{pmatrix} ${result.solution.map(s => `${s.variable} = ${s.fraction.toTex(false)}`).join(' \\\\ ')} \\end{pmatrix}`} />
+                    </div>
+                  </div>
+
+                  {result.solution.some(s => s.fraction.isNegative()) && (
+                    <div className="applied-substep highlight-step">
+                      <div className="applied-substep-header">
+                        <span className="substep-badge alert">Paso 3</span>
+                        <strong>Análisis Físico de Signos y Sentido de Circulación</strong>
+                      </div>
+                      <p className="substep-text">
+                        En ingeniería de tráfico, un caudal negativo indica que los vehículos circulan en <strong>sentido opuesto</strong> al sentido asignado arbitrariamente en la flecha de la calle. Para expresar la magnitud física real en sentido de avance, se toma el valor absoluto $|q_i|$:
+                      </p>
+                      <div className="substep-formula">
+                        <MathView block math={`\\forall q_i < 0: \\quad q_{i,\\text{real}} = |q_i| \\implies \\text{Inversión de flecha en el tramo vial}`} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="applied-substep">
+                    <div className="applied-substep-header">
+                      <span className="substep-badge">Paso {result.solution.some(s => s.fraction.isNegative()) ? '4' : '3'}</span>
+                      <strong>Caudal Vehicular Físico Final (Enteros / Unidades Reales)</strong>
+                    </div>
+                    <p className="substep-text">
+                      Cada tramo de la red queda determinado con su capacidad y flujo vehicular por hora:
+                    </p>
+                    <div className="applied-vars-grid">
+                      {result.solution.map((item, idx) => (
+                        <div key={idx} className="applied-var-card">
+                          <span className="app-var-name"><MathView math={item.variable} /></span>
+                          <span className="app-var-eq">=</span>
+                          <span className="app-var-num">{item.fraction.abs().toTex(false)}</span>
+                          <span className="app-var-unit">vehículos / hora</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -266,26 +332,62 @@ export default function ResultsView({
             {result.context === 'quimico' && (
               <div className="applied-context-showcase chemical-showcase">
                 <div className="applied-header">
-                  <span className="applied-badge">⚗️ Modelo Aplicado: Balance de Reacción Química</span>
+                  <span className="applied-badge">⚗️ Procedimiento Matemático: Balance de Reacción Química (Estequiometría)</span>
                 </div>
                 <p className="applied-desc">
-                  En estequiometría química, los coeficientes representan el número de moléculas o moles que participan en la reacción para cumplir con la conservación de la masa. Deben ser <strong>números naturales enteros mínimos</strong>:
+                  En química general, los coeficientes estequiométricos indican el número exacto de moléculas o moles que participan en la reacción. Deben cumplir la ley de conservación de la materia (Lavoisier) expresada en <strong>enteros naturales mínimos (&gt; 0)</strong>:
                 </p>
-                <div className="applied-vars-grid">
-                  {result.solution.map((item, idx) => (
-                    <div key={idx} className="applied-var-card">
-                      <span className="app-var-name"><MathView math={item.variable} /></span>
-                      <span className="app-var-eq">=</span>
-                      <span className="app-var-num">{item.fraction.abs().toTex(false)}</span>
-                      <span className="app-var-unit">moles / moléculas</span>
+
+                {/* Sub-pasos matemáticos del balance químico */}
+                <div className="applied-steps-flow">
+                  <div className="applied-substep">
+                    <div className="applied-substep-header">
+                      <span className="substep-badge">Paso 1</span>
+                      <strong>Conservación Atómica de la Materia (Ley de Lavoisier)</strong>
                     </div>
-                  ))}
+                    <p className="substep-text">
+                      El número total de átomos de cada elemento presente en los reactivos debe ser idéntico al presente en los productos:
+                    </p>
+                    <div className="substep-formula">
+                      <MathView block math={`\\sum \\text{átomos}_{\\text{reactivos}} = \\sum \\text{átomos}_{\\text{productos}} \\implies \\sum a_i X_i = 0`} />
+                    </div>
+                  </div>
+
+                  <div className="applied-substep">
+                    <div className="applied-substep-header">
+                      <span className="substep-badge">Paso 2</span>
+                      <strong>Solución Matemática Inicial del Sistema</strong>
+                    </div>
+                    <p className="substep-text">
+                      A partir de la resolución del sistema lineal se obtuvieron los valores de las incógnitas:
+                    </p>
+                    <div className="substep-formula">
+                      <MathView block math={`\\vec{X} = \\begin{pmatrix} ${result.solution.map(s => `${s.variable} = ${s.fraction.toTex(false)}`).join(' \\\\ ')} \\end{pmatrix}`} />
+                    </div>
+                  </div>
+
+                  <div className="applied-substep highlight-step">
+                    <div className="applied-substep-header">
+                      <span className="substep-badge">Paso 3</span>
+                      <strong>Normalización Estequiométrica (Números Naturales &gt; 0)</strong>
+                    </div>
+                    <p className="substep-text">
+                      Las moléculas no pueden existir en cantidades fraccionarias o negativas en una ecuación balanceada. Se toman los valores positivos mínimos enteros:
+                    </p>
+                    <div className="applied-vars-grid">
+                      {result.solution.map((item, idx) => (
+                        <div key={idx} className="applied-var-card">
+                          <span className="app-var-name"><MathView math={item.variable} /></span>
+                          <span className="app-var-eq">=</span>
+                          <span className="app-var-num">{item.fraction.abs().toTex(false)}</span>
+                          <span className="app-var-unit">moles / moléculas</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-
-            {/* Opciones de Flujo Vehicular y Balance Químico DESPUÉS de resolver por Gauss o Gauss-Jordan */}
-            {renderContextBox(false)}
           </div>
         )}
 
@@ -314,49 +416,6 @@ export default function ResultsView({
                 ? 'En una reacción química, los coeficientes estequiométricos deben ser números naturales enteros mínimos (no fraccionarios ni negativos). Se escaló el sistema para balancear la ecuación:'
                 : 'Al existir infinitas soluciones, se asignó un valor entero no fraccionario a las variables libres y se multiplicó por el m.c.m. de los denominadores para garantizar resultados en números enteros/naturales:'}
             </p>
-
-            {/* Context selection buttons: Flujo vehicular / Balance químico */}
-            <div className="context-selection-box">
-              <span className="context-selection-label">
-                🎯 Ajustar a contexto del problema:
-              </span>
-              <div className="context-buttons-row">
-                <button
-                  type="button"
-                  className={`context-btn btn-traffic ${result.context === 'vehicular' ? 'active' : ''}`}
-                  onClick={() => onContextChange?.('vehicular')}
-                  title="Ajustar el sistema de infinitas soluciones al contexto de Flujo Vehicular (flujos enteros positivos)"
-                >
-                  <span className="context-emoji">🚗</span>
-                  <div className="context-btn-text">
-                    <strong>Flujo vehicular</strong>
-                    <small>Tránsito y flujos en redes</small>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className={`context-btn btn-chemical ${result.context === 'quimico' ? 'active' : ''}`}
-                  onClick={() => onContextChange?.('quimico')}
-                  title="Ajustar el sistema de infinitas soluciones al contexto de Balance Químico (coeficientes estequiométricos enteros)"
-                >
-                  <span className="context-emoji">⚗️</span>
-                  <div className="context-btn-text">
-                    <strong>Balance químico</strong>
-                    <small>Reacciones estequiométricas</small>
-                  </div>
-                </button>
-                {result.context && (
-                  <button
-                    type="button"
-                    className="context-btn btn-reset-context"
-                    onClick={() => onContextChange?.(null)}
-                    title="Restablecer a solución particular estándar"
-                  >
-                    <span>Restablecer estándar</span>
-                  </button>
-                )}
-              </div>
-            </div>
 
             <div className="solution-items-grid">
               {result.particularSolution.map((item, idx) => (
@@ -407,9 +466,16 @@ export default function ResultsView({
       {result.steps && result.steps.length > 0 && (
         <div className="steps-accordion-container">
           <div className="steps-header-row">
-            <h3 className="steps-main-title">
-              Resolución Paso a Paso ({result.steps.length} pasos)
-            </h3>
+            <div>
+              <h3 className="steps-main-title">
+                Resolución Paso a Paso ({result.steps.length} pasos)
+              </h3>
+              {result.context && (
+                <span className="steps-context-indicator">
+                  Incluye pasos específicos del modelo de {result.context === 'vehicular' ? '🚗 Flujo Vehicular' : '⚗️ Balance Químico'}
+                </span>
+              )}
+            </div>
             <button
               type="button"
               className="toggle-all-steps-btn"

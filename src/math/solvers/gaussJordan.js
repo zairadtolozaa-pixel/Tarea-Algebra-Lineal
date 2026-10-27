@@ -171,6 +171,30 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
     const pivotColIndices = new Set(pivotCols.map(p => p.col));
     const freeVarNames = varNames.filter((_, idx) => !pivotColIndices.has(idx));
 
+    const contextSteps = [];
+    if (context) {
+      const isVehicular = context === 'vehicular';
+      const ctxName = isVehicular ? 'Flujo Vehicular' : 'Balance Químico';
+      const ctxEmoji = isVehicular ? '🚗' : '⚗️';
+      const unitName = isVehicular ? '\\text{vehículos/hora}' : '\\text{moles / moléculas}';
+
+      contextSteps.push({
+        title: `${ctxEmoji} Ajuste de Variables Libres (${ctxName})`,
+        description: isVehicular
+          ? `En una red vial con infinitas soluciones, las variables libres (${freeVarNames.join(', ')}) representan ramales independientes. Para modelar un flujo físicamente consistente sin calles bloqueadas, se asigna t = 1 a las variables libres:`
+          : `En una reacción química con infinitas soluciones, se asigna t = 1 a la variable libre para obtener la reacción base y escalarla a los coeficientes enteros mínimos:`,
+        latex: `\\text{Variables libres: } ${freeVarNames.map(v => `${v} = 1`).join(', ')}`,
+        highlightRows: []
+      });
+
+      contextSteps.push({
+        title: `${ctxEmoji} Solución Particular Escalada a Enteros (${ctxName})`,
+        description: `Leyendo directamente de la RREF y multiplicando por el m.c.m. de los denominadores para eliminar fracciones, se obtiene el vector solución exacto para ${ctxName}:`,
+        latex: `\\vec{X}_{\\text{${isVehicular ? 'vial' : 'reacción'}}} = \\begin{pmatrix} ${partSolFormatted.map(s => `${s.variable} = ${s.tex} \\text{ } ${unitName}`).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
+    }
+
     return {
       status: 'indeterminado',
       statusText: 'Sistema Compatible Indeterminado (Infinitas Soluciones)',
@@ -182,7 +206,8 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
       particularSolution: partSolFormatted,
       M: cloneMatrix(M),
       pivotCols,
-      steps,
+      steps: [...steps, ...contextSteps],
+      contextSteps,
       summary: `El rango es ${rankA} < ${n} incógnitas. El sistema tiene infinitas soluciones con ${n - rankA} grado(s) de libertad. Las variables libres son: ${freeVarNames.join(', ')}.`
     };
   }
@@ -204,7 +229,14 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
 
   // If a context was chosen (vehicular o quimico), scale solution to positive integers/natural numbers!
   let finalSolution = solution;
+  const contextSteps = [];
+
   if (options.context) {
+    const isVehicular = options.context === 'vehicular';
+    const ctxName = isVehicular ? 'Flujo Vehicular' : 'Balance Químico';
+    const ctxEmoji = isVehicular ? '🚗' : '⚗️';
+    const unitName = isVehicular ? '\\text{vehículos/hora}' : '\\text{moles / moléculas}';
+
     let solLcm = 1n;
     for (const item of solution) {
       if (item.fraction.d !== 0n) {
@@ -213,6 +245,7 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
         solLcm = (solLcm / a) * item.fraction.d;
       }
     }
+
     if (solLcm > 1n) {
       finalSolution = solution.map(item => {
         const scaled = item.fraction.mul(new Fraction(solLcm, 1n));
@@ -223,8 +256,17 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
           decimal: scaled.toDecimalString()
         };
       });
+      contextSteps.push({
+        title: `${ctxEmoji} Paso de Ajuste (${ctxName}): Multiplicación por m.c.m. = ${solLcm}`,
+        description: `En ${ctxName}, las magnitudes deben ser enteros indivisibles (vehículos completos o moléculas enteras). Se multiplican las componentes por ${solLcm} para suprimir denominadores:`,
+        latex: `\\vec{X}_{\\text{enteros}} = (${solLcm}) \\cdot \\begin{pmatrix} ${solution.map(s => s.tex).join(' \\\\ ')} \\end{pmatrix} = \\begin{pmatrix} ${finalSolution.map(s => s.tex).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
     }
+
+    const anyNeg = finalSolution.some(item => item.fraction.isNegative());
     const allNeg = finalSolution.every(item => item.fraction.isNegative() || item.fraction.isZero());
+
     if (allNeg) {
       finalSolution = finalSolution.map(item => {
         const pos = item.fraction.neg();
@@ -234,6 +276,30 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
           tex: pos.toTex(),
           decimal: pos.toDecimalString()
         };
+      });
+      contextSteps.push({
+        title: `${ctxEmoji} Normalización de Sentido (${ctxName}): Inversión de signo`,
+        description: isVehicular
+          ? 'En redes viales los caudales son estrictamente positivos. Al resultar todas las ramas negativas, se adopta el sentido físico real de circulación:'
+          : 'En reacciones químicas los coeficientes estequiométricos deben ser positivos (> 0). Se multiplican por -1:',
+        latex: `\\vec{X}_{\\text{positivo}} = (-1) \\cdot \\vec{X} = \\begin{pmatrix} ${finalSolution.map(s => s.tex).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
+    } else if (anyNeg && isVehicular) {
+      contextSteps.push({
+        title: `${ctxEmoji} Análisis Físico del Sentido de Circulación (${ctxName})`,
+        description: 'En el modelado vial, los valores negativos indican que el flujo vehicular real circula en sentido opuesto al asignado en el croquis inicial.',
+        latex: `\\vec{X}_{\\text{flujo}} = \\begin{pmatrix} ${finalSolution.map((s) => `${s.variable} = ${s.fraction.abs().toTex()} \\text{ } ${unitName} \\text{ (${s.fraction.isNegative() ? 'sentido opuesto' : 'sentido asignado'})}`).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
+    } else {
+      contextSteps.push({
+        title: `${ctxEmoji} Interpretación Final del Procedimiento (${ctxName})`,
+        description: isVehicular
+          ? 'Cada valor obtenido representa el volumen de vehículos por hora en cada vía o calle de la red:'
+          : 'Cada valor obtenido representa el número entero mínimo de moléculas que conservan la materia en la reacción:',
+        latex: `\\begin{cases} ${finalSolution.map((s) => `${s.variable} = ${s.tex} \\text{ } ${unitName}`).join(' \\\\ ')} \\end{cases}`,
+        highlightRows: []
       });
     }
   }
@@ -246,7 +312,8 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
     hasFractionSolution,
     context: options.context || null,
     solution: finalSolution,
-    steps,
+    steps: [...steps, ...contextSteps],
+    contextSteps,
     summary: options.context
       ? `Solución resuelta por Gauss-Jordan y reorientada para ${options.context === 'vehicular' ? 'Flujo Vehicular' : 'Balance Químico'}. Se ajustó el sistema para entregar valores enteros / naturales exactos.`
       : `El rango de la matriz es igual al número de incógnitas (rango = ${rankA} = ${n}). La solución se lee directamente de la RREF.`

@@ -1,8 +1,19 @@
 import { Fraction } from '../fraction';
-import { cloneMatrix, matrixToTex, augInvToTex, calculateDeterminantWithSteps } from '../matrixUtils';
+import {
+  cloneMatrix,
+  matrixToTex,
+  determinantToTex,
+  calculateDeterminantWithSteps,
+  getSubmatrix
+} from '../matrixUtils';
 
 /**
- * Solves a linear system X = A^(-1) * B using Matrix Inversion
+ * Solves a linear system X = A^(-1) * B using Matrix Inversion via Adjugate Matrix:
+ *   A^(-1) = (1 / det(A)) * Adj(A) = (1 / det(A)) * (Cof(A))^T
+ *   X = A^(-1) * B
+ *
+ * Fully respects the method of matrix inversion by adjugate/cofactors,
+ * with NO Gauss or Gauss-Jordan reduction steps.
  */
 export function solveInverseMatrix(matrixA, vectorB, options = {}) {
   const { variableNames = [] } = options;
@@ -28,19 +39,19 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
   const A = matrixA.map(row => row.map(c => (c instanceof Fraction ? c : Fraction.fromString(String(c)))));
   const B = vectorB.map(b => (b instanceof Fraction ? b : Fraction.fromString(String(b))));
 
-  // Step 1: Calculate Determinant
+  // Step 1: Calculate Determinant det(A) using Sarrus (3x3) or Cofactors
   const detResult = calculateDeterminantWithSteps(A, options);
   const detA = detResult.value;
   const detMethodLabel = {
-    sarrus: '📐 Sarrus (3×3)',
-    cofactors: '🔢 Cofactores (Laplace)',
-    formula2x2: 'Fórmula 2×2',
+    sarrus: '📐 Regla de Sarrus (3×3)',
+    cofactors: '🔢 Expansión por Cofactores (Laplace)',
+    formula2x2: 'Fórmula directa 2×2',
     directo: 'Directo'
   }[detResult.method] || 'Determinante';
 
   steps.push({
-    title: `Paso 1: Cálculo del determinante — Método: ${detMethodLabel}`,
-    description: 'Para que la matriz sea invertible, su determinante debe ser diferente de cero (\\det(A) \\neq 0).',
+    title: `Paso 1: Cálculo del determinante del sistema — ${detMethodLabel}`,
+    description: 'Para que la matriz inversa A⁻¹ exista y el sistema tenga solución única, el determinante debe ser diferente de cero (\\det(A) \\neq 0).',
     latex: `\\det(A) = ${detA.toTex()}`,
     substeps: detResult.steps
   });
@@ -55,89 +66,69 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
     };
   }
 
-  // Step 2: Compute Inverse A^(-1) using augmented [A | I_n] via Gauss-Jordan
-  const invSteps = [];
-  const aug = Array.from({ length: n }, (_, r) => {
-    const row = [...A[r]];
-    for (let c = 0; c < n; c++) {
-      row.push(r === c ? Fraction.one() : Fraction.zero());
-    }
-    return row;
-  });
+  // Step 2: Compute Matrix of Cofactors Cof(A) and Adjugate Adj(A) = Cof(A)^T
+  const cofactorMatrix = Array.from({ length: n }, () => Array.from({ length: n }, () => Fraction.zero()));
+  const cofactorSubsteps = [];
 
-  invSteps.push({
-    title: 'Matriz ampliada inicial [A | I_n]',
-    description: 'Se construye la matriz ampliada uniendo A con la identidad I. Se aplicará Gauss-Jordan hasta obtener [I | A⁻¹].',
-    latex: augInvToTex(aug, n)
-  });
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const signExponent = i + j;
+      const signVal = signExponent % 2 === 0 ? Fraction.one() : Fraction.one().neg();
+      const signTex = signExponent % 2 === 0 ? '+' : '-';
 
-  // Gauss-Jordan on aug to get [I_n | A^(-1)]
-  for (let col = 0; col < n; col++) {
-    // Find pivot
-    let pivotRow = col;
-    while (pivotRow < n && aug[pivotRow][col].isZero()) {
-      pivotRow++;
-    }
+      let minorDet;
+      let minorTex = '';
 
-    if (pivotRow !== col) {
-      const temp = aug[col];
-      aug[col] = aug[pivotRow];
-      aug[pivotRow] = temp;
-
-      const opTex = `\\text{Fila } ${col + 1} \\longleftrightarrow \\text{Fila } ${pivotRow + 1}`;
-      invSteps.push({
-        title: `Intercambiar Fila ${col + 1} y Fila ${pivotRow + 1}`,
-        latex: `${opTex}\\\\[0.6em] \\text{Nueva matriz aumentada [A | I]:} \\\\[0.3em] ${augInvToTex(aug, n)}`
-      });
-    }
-
-    const pivot = aug[col][col];
-
-    // Scale pivot row to 1
-    if (!pivot.isOne()) {
-      const invPivot = pivot.inv();
-      for (let c = 0; c < 2 * n; c++) {
-        aug[col][c] = aug[col][c].mul(invPivot);
+      if (n === 2) {
+        // Minor of 2x2 is the single remaining entry
+        const singleVal = A[1 - i][1 - j];
+        minorDet = singleVal;
+        minorTex = singleVal.toTex();
+      } else {
+        const sub = getSubmatrix(A, i, j);
+        const subDetRes = calculateDeterminantWithSteps(sub, options);
+        minorDet = subDetRes.value;
+        minorTex = `${determinantToTex(sub)} = ${minorDet.toTex()}`;
       }
-      const opTex = `\\text{Fila } ${col + 1} \\div (${pivot.toTex()})`;
-      invSteps.push({
-        title: `Normalizar Fila ${col + 1}: dividir entre ${pivot.toTex()}`,
-        latex: `${opTex}\\\\[0.6em] \\text{Nueva matriz aumentada [A | I]:} \\\\[0.3em] ${augInvToTex(aug, n)}`
+
+      const Cij = signVal.mul(minorDet);
+      cofactorMatrix[i][j] = Cij;
+
+      cofactorSubsteps.push({
+        title: `Cofactor C_{${i + 1},${j + 1}} (fila ${i + 1}, columna ${j + 1})`,
+        latex: `C_{${i + 1},${j + 1}} = (-1)^{${i + 1}+${j + 1}} \\cdot M_{${i + 1},${j + 1}} = (${signTex}1) \\cdot \\left(${minorTex}\\right) = \\mathbf{${Cij.toTex()}}`
       });
-    }
-
-    // Eliminate other rows
-    for (let r = 0; r < n; r++) {
-      if (r !== col && !aug[r][col].isZero()) {
-        const factor = aug[r][col];
-        for (let c = 0; c < 2 * n; c++) {
-          aug[r][c] = aug[r][c].sub(factor.mul(aug[col][c]));
-        }
-
-        const factorTex = factor.abs().toTex();
-        const opTex = factor.isNegative()
-          ? `\\text{Fila } ${r + 1} + (${factorTex}) \\cdot \\text{Fila } ${col + 1}`
-          : `\\text{Fila } ${r + 1} - (${factorTex}) \\cdot \\text{Fila } ${col + 1}`;
-
-        invSteps.push({
-          title: `Hacer cero en la Fila ${r + 1}: restar (${factor.toTex()}) veces la Fila ${col + 1}`,
-          latex: `${opTex}\\\\[0.6em] \\text{Nueva matriz aumentada [A | I]:} \\\\[0.3em] ${augInvToTex(aug, n)}`
-        });
-      }
     }
   }
 
-  // Extract A^(-1)
-  const invA = aug.map(row => row.slice(n));
+  steps.push({
+    title: 'Paso 2: Matriz de Cofactores Cof(A)',
+    description: 'Se calcula el cofactor de cada elemento de la matriz: C_{ij} = (-1)^{i+j} \\cdot M_{ij}, donde M_{ij} es el menor complementario obtenido al eliminar la fila i y columna j.',
+    latex: `\\text{Cof}(A) = ${matrixToTex(cofactorMatrix)}`,
+    substeps: cofactorSubsteps
+  });
 
-  // Determine if A^(-1) contains fractions and find common denominator to give integer representation
+  // Transpose of Cofactor Matrix gives Adjugate Matrix: Adj(A) = Cof(A)^T
+  const adjA = Array.from({ length: n }, (_, r) =>
+    Array.from({ length: n }, (_, c) => cofactorMatrix[c][r])
+  );
+
+  steps.push({
+    title: 'Paso 3: Matriz Adjunta — Transpuesta de Cofactores: Adj(A) = [Cof(A)]ᵀ',
+    description: 'La matriz adjunta Adj(A) se obtiene transponiendo la matriz de cofactores (las filas se convierten en columnas).',
+    latex: `\\text{Adj}(A) = [\\text{Cof}(A)]^T = ${matrixToTex(adjA)}`
+  });
+
+  // Step 4: Inverse Matrix A^(-1) = (1 / det(A)) * Adj(A)
+  const invA = adjA.map(row => row.map(cell => cell.div(detA)));
+
+  // Common denominator for integer representation
   let invLcm = 1n;
   let hasFractions = false;
   for (const row of invA) {
     for (const val of row) {
       if (val.d !== 1n) {
         hasFractions = true;
-        // gcd-based lcm
         let a = invLcm, b = val.d;
         while (b !== 0n) { const t = b; b = a % b; a = t; }
         invLcm = (invLcm / a) * val.d;
@@ -145,50 +136,51 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
     }
   }
 
-  // Integer matrix = invA * invLcm
   const intMatrixAInv = invA.map(row => row.map(val => val.mul(new Fraction(invLcm, 1n))));
 
   steps.push({
-    title: 'Paso 2: Obtención de la Matriz Inversa A⁻¹ mediante Gauss-Jordan',
-    description: 'Se realizaron las operaciones sobre la matriz ampliada [A | I] hasta llegar a [I | A⁻¹]. En cada paso se observa la nueva matriz resultante.',
+    title: 'Paso 4: Obtención de la Matriz Inversa — A⁻¹ = \\frac{1}{\\det(A)} \\cdot \\text{Adj}(A)',
+    description: `Se divide cada elemento de la matriz adjunta entre el determinante del sistema (\\det(A) = ${detA.toTex()}).`,
     latex: hasFractions && invLcm > 1n
-      ? `A^{-1} = ${matrixToTex(invA)} = \\dfrac{1}{${invLcm.toString()}}\\, ${matrixToTex(intMatrixAInv)}`
-      : `A^{-1} = ${matrixToTex(invA)}`,
-    matrix: cloneMatrix(invA),
-    substeps: invSteps
+      ? `A^{-1} = \\dfrac{1}{${detA.toTex()}}\\, ${matrixToTex(adjA)} = ${matrixToTex(invA)} = \\dfrac{1}{${invLcm.toString()}}\\, ${matrixToTex(intMatrixAInv)}`
+      : `A^{-1} = \\dfrac{1}{${detA.toTex()}}\\, ${matrixToTex(adjA)} = ${matrixToTex(invA)}`
   });
 
-  // Step 3: Multiply X = A^(-1) * B
+  // Step 5: Multiply X = A^(-1) * B
   const bVectorTex = `\\left(\\begin{array}{c}\n${B.map(b => b.toTex()).join(' \\\\ \n')}\n\\end{array}\\right)`;
   const multSteps = [];
   const solution = [];
 
+  // Compute product Adj(A) * B
+  const adjTimesB = [];
   for (let i = 0; i < n; i++) {
-    let sum = Fraction.zero();
-    const productTerms = [];
-
+    let rowSum = Fraction.zero();
+    const adjProdTerms = [];
     for (let j = 0; j < n; j++) {
-      const aVal = invA[i][j];
+      const adjVal = adjA[i][j];
       const bVal = B[j];
-      const prod = aVal.mul(bVal);
-      sum = sum.add(prod);
-      productTerms.push(`\\left(${aVal.toTex()}\\right)\\!\\left(${bVal.toTex()}\\right)`);
+      const p = adjVal.mul(bVal);
+      rowSum = rowSum.add(p);
+      adjProdTerms.push(`(${adjVal.toTex()})(${bVal.toTex()})`);
     }
-
+    adjTimesB.push(rowSum);
+    const finalVal = rowSum.div(detA);
     solution.push({
       variable: varNames[i],
-      fraction: sum,
-      tex: sum.toTex(),
-      decimal: sum.toDecimalString()
+      fraction: finalVal,
+      tex: finalVal.toTex(),
+      decimal: finalVal.toDecimalString()
     });
-
     multSteps.push({
       variable: varNames[i],
-      latex: `${varNames[i]} = ${productTerms.join(' + ')} = \\boxed{${sum.toTex()}}`
+      latex: `${varNames[i]} = \\dfrac{1}{${detA.toTex()}} \\left[ ${adjProdTerms.join(' + ')} \\right] = \\dfrac{${rowSum.toTex()}}{${detA.toTex()}} = \\boxed{${finalVal.toTex()}}`
     });
   }
 
-  // Check if solution has fractions to compute scaled integer solution
+  const adjTimesBTex = `\\begin{pmatrix} ${adjTimesB.map(v => v.toTex()).join(' \\\\ ')} \\end{pmatrix}`;
+  const finalSolTex = `\\begin{pmatrix} ${solution.map(s => s.tex).join(' \\\\ ')} \\end{pmatrix}`;
+
+  // Common denominator for solution scaling if fractions exist
   let solLcm = 1n;
   let solHasFractions = false;
   for (const s of solution) {
@@ -209,9 +201,9 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
     : null;
 
   steps.push({
-    title: 'Paso 3: Producto X = A⁻¹ · B (Solución del sistema)',
-    description: 'Se multiplica la matriz inversa obtenida por el vector de términos independientes B.',
-    latex: `\\begin{pmatrix} ${varNames.join(' \\\\ ')} \\end{pmatrix} = ${matrixToTex(invA)} \\cdot ${bVectorTex}`,
+    title: 'Paso 5: Resultado final del sistema — Multiplicamos A⁻¹ · B',
+    description: 'Multiplicamos la matriz inversa por el vector de términos independientes: X = A⁻¹ B = \\frac{1}{\\det(A)} \\cdot \\text{Adj}(A) \\cdot B',
+    latex: `X = \\dfrac{1}{${detA.toTex()}}\\, ${matrixToTex(adjA)} ${bVectorTex} = \\dfrac{1}{${detA.toTex()}}\\, ${adjTimesBTex} = ${finalSolTex}`,
     multiplicationDetails: multSteps
   });
 
@@ -229,6 +221,6 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
     integerSolution,
     solution,
     steps,
-    summary: `La matriz inversa existe (\\det(A) = ${detA.toTex()} \\neq 0) calculada por ${detMethodLabel}. Al multiplicar A^{-1} \\cdot B se obtiene la solución única.`
+    summary: `La matriz inversa existe (\\det(A) = ${detA.toTex()} \\neq 0) calculada mediante la matriz adjunta y determinantes por ${detMethodLabel}. Al efectuar la multiplicación X = A^{-1} \\cdot B se obtiene la solución única.`
   };
 }

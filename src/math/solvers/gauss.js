@@ -155,6 +155,30 @@ export function solveGauss(matrixA, vectorB, options = {}) {
     const pivotColIndices = new Set(pivotCols.map(p => p.col));
     const freeVarNames = varNames.filter((_, idx) => !pivotColIndices.has(idx));
 
+    const contextSteps = [];
+    if (context) {
+      const isVehicular = context === 'vehicular';
+      const ctxName = isVehicular ? 'Flujo Vehicular' : 'Balance Químico';
+      const ctxEmoji = isVehicular ? '🚗' : '⚗️';
+      const unitName = isVehicular ? '\\text{vehículos/hora}' : '\\text{moles / moléculas}';
+
+      contextSteps.push({
+        title: `${ctxEmoji} Ajuste de Variables Libres (${ctxName})`,
+        description: isVehicular
+          ? `En una red vial con infinitas soluciones, las variables libres (${freeVarNames.join(', ')}) controlan el flujo del circuito cerrado. Para garantizar que no existan tramos bloqueados ni flujo nulo o negativo, se asigna un caudal positivo no nulo (t = 1) a las variables libres:`
+          : `En una reacción química con infinitas soluciones, se asigna t = 1 a la variable libre para obtener la reacción base y luego se escala a los enteros mínimos de reacción:`,
+        latex: `\\text{Variables libres: } ${freeVarNames.map(v => `${v} = 1`).join(', ')}`,
+        highlightRows: []
+      });
+
+      contextSteps.push({
+        title: `${ctxEmoji} Solución Particular Escalada a Enteros (${ctxName})`,
+        description: `Sustituyendo hacia atrás y multiplicando por el m.c.m. de los denominadores para eliminar fracciones, se obtiene el vector solución exacto para ${ctxName}:`,
+        latex: `\\vec{X}_{\\text{${isVehicular ? 'vial' : 'reacción'}}} = \\begin{pmatrix} ${partSolFormatted.map(s => `${s.variable} = ${s.tex} \\text{ } ${unitName}`).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
+    }
+
     return {
       status: 'indeterminado',
       statusText: 'Sistema Compatible Indeterminado (Infinitas Soluciones)',
@@ -166,7 +190,8 @@ export function solveGauss(matrixA, vectorB, options = {}) {
       particularSolution: partSolFormatted,
       M: cloneMatrix(M),
       pivotCols,
-      steps,
+      steps: [...steps, ...contextSteps],
+      contextSteps,
       summary: `El rango del sistema es ${rankA}, el cual es menor que el número de incógnitas (${n}). Por el Teorema de Rouché-Frobenius, el sistema tiene infinitas soluciones con ${n - rankA} grado(s) de libertad. Las variables libres son: ${freeVarNames.join(', ')}.`
     };
   }
@@ -217,7 +242,14 @@ export function solveGauss(matrixA, vectorB, options = {}) {
 
   // If a context was chosen (vehicular o quimico), scale solution to positive integers/natural numbers!
   let finalSolution = solution;
+  const contextSteps = [];
+
   if (options.context) {
+    const isVehicular = options.context === 'vehicular';
+    const ctxName = isVehicular ? 'Flujo Vehicular' : 'Balance Químico';
+    const ctxEmoji = isVehicular ? '🚗' : '⚗️';
+    const unitName = isVehicular ? '\\text{vehículos/hora}' : '\\text{moles / moléculas}';
+
     let solLcm = 1n;
     for (const v of solution) {
       if (v.d !== 0n) {
@@ -226,13 +258,47 @@ export function solveGauss(matrixA, vectorB, options = {}) {
         solLcm = (solLcm / a) * v.d;
       }
     }
+
     if (solLcm > 1n) {
       finalSolution = solution.map(v => v.mul(new Fraction(solLcm, 1n)));
+      contextSteps.push({
+        title: `${ctxEmoji} Paso de Ajuste (${ctxName}): Multiplicación por m.c.m. = ${solLcm}`,
+        description: `En el contexto de ${ctxName}, los resultados deben ser números enteros exactos (los vehículos o las moléculas son unidades indivisibles). Se multiplican todas las variables por el mínimo común múltiplo de los denominadores (${solLcm}) para eliminar las fracciones:`,
+        latex: `\\vec{X}_{\\text{enteros}} = (${solLcm}) \\cdot \\begin{pmatrix} ${solution.map(s => s.toTex()).join(' \\\\ ')} \\end{pmatrix} = \\begin{pmatrix} ${finalSolution.map(s => s.toTex()).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
     }
+
     // Ensure positive natural numbers
+    const anyNeg = finalSolution.some(v => v.isNegative());
     const allNeg = finalSolution.every(v => v.isNegative() || v.isZero());
+
     if (allNeg) {
       finalSolution = finalSolution.map(v => v.neg());
+      contextSteps.push({
+        title: `${ctxEmoji} Normalización de Sentido (${ctxName}): Inversión de signo`,
+        description: isVehicular
+          ? 'En redes de flujo vehicular, los caudales no pueden ser negativos. Al resultar todas las ramas con signo negativo, se invierte la orientación de referencia de las vías para obtener flujos positivos en el sentido real de circulación:'
+          : 'En reacciones químicas, los coeficientes de balance estequiométrico deben ser cantidades positivas naturales (> 0). Se multiplican por -1:',
+        latex: `\\vec{X}_{\\text{positivo}} = (-1) \\cdot \\vec{X} = \\begin{pmatrix} ${finalSolution.map(s => s.toTex()).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
+    } else if (anyNeg && isVehicular) {
+      contextSteps.push({
+        title: `${ctxEmoji} Análisis Físico del Sentido de Circulación (${ctxName})`,
+        description: 'En el modelado vial, los valores negativos indican que el flujo vehicular real circula en sentido opuesto al asignado arbitrariamente en la flecha de la calle.',
+        latex: `\\vec{X}_{\\text{flujo}} = \\begin{pmatrix} ${finalSolution.map((s, idx) => `${varNames[idx]} = ${s.abs().toTex()} \\text{ } ${unitName} \\text{ (${s.isNegative() ? 'sentido opuesto' : 'sentido asignado'})}`).join(' \\\\ ')} \\end{pmatrix}`,
+        highlightRows: []
+      });
+    } else {
+      contextSteps.push({
+        title: `${ctxEmoji} Interpretación Final del Procedimiento (${ctxName})`,
+        description: isVehicular
+          ? 'Cada valor obtenido representa el caudal de vehículos por unidad de tiempo en cada tramo de la red de tránsito:'
+          : 'Cada valor obtenido representa el número entero mínimo de moléculas en la reacción balanceada:',
+        latex: `\\begin{cases} ${finalSolution.map((s, idx) => `${varNames[idx]} = ${s.toTex()} \\text{ } ${unitName}`).join(' \\\\ ')} \\end{cases}`,
+        highlightRows: []
+      });
     }
   }
 
@@ -250,7 +316,8 @@ export function solveGauss(matrixA, vectorB, options = {}) {
       tex: val.toTex(),
       decimal: val.toDecimalString()
     })),
-    steps,
+    steps: [...steps, ...contextSteps],
+    contextSteps,
     backSubstitutionSteps,
     summary: options.context
       ? `Solución resuelta por Eliminación de Gauss y reorientada para ${options.context === 'vehicular' ? 'Flujo Vehicular' : 'Balance Químico'}. Se ajustó el sistema para entregar valores enteros / naturales exactos.`

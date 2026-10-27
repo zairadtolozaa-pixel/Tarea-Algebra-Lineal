@@ -206,7 +206,15 @@ export default function App() {
     const targetMethod = methodId || activeMethod || 'gauss';
     setActiveMethod(targetMethod);
 
-    const activeCtx = overrideContext !== undefined ? overrideContext : problemContext;
+    const isGaussFamily = targetMethod === 'gauss' || targetMethod === 'gaussJordan';
+    // Only Gauss and Gauss-Jordan allow application contexts (Flujo vehicular & Balance químico)
+    const activeCtx = isGaussFamily
+      ? (overrideContext !== undefined ? overrideContext : problemContext)
+      : null;
+    if (!isGaussFamily && problemContext) {
+      setProblemContext(null);
+    }
+
     const activeDet = overrideDetMethod !== undefined ? overrideDetMethod : detMethod;
 
     const options = {
@@ -342,6 +350,7 @@ export default function App() {
         <section id="results-section" className="results-wrapper">
           <ResultsView
             result={result}
+            activeMethod={activeMethod}
             methodName={getMethodDisplayName(activeMethod)}
             numFormat={numFormat}
             decimalPlaces={decimalPlaces}
