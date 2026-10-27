@@ -2,7 +2,15 @@ import React from 'react';
 import { ArrowDownRight, Layers, RefreshCw, Divide } from 'lucide-react';
 import MathView from './MathView';
 
-export default function SolverControls({ onSolve, activeMethod, isSquare, rows, cols }) {
+export default function SolverControls({
+  onSolve,
+  activeMethod,
+  isSquare,
+  rows,
+  cols,
+  detMethod = 'sarrus',
+  onDetMethodChange
+}) {
   const methods = [
     {
       id: 'gauss',
@@ -95,6 +103,35 @@ export default function SolverControls({ onSolve, activeMethod, isSquare, rows, 
           );
         })}
       </div>
+
+      {/* Sub-selector for Determinant Method: Sarrus vs Cofactores */}
+      {isSquare && (activeMethod === 'cramer' || activeMethod === 'inverse') && (
+        <div className="det-method-selector-card">
+          <span className="det-selector-title">
+            Método para calcular los determinantes:
+          </span>
+          <div className="det-selector-pills">
+            <button
+              type="button"
+              className={`det-pill ${detMethod === 'sarrus' ? 'active' : ''}`}
+              onClick={() => onDetMethodChange?.('sarrus')}
+              title="Calcular determinantes mediante la Regla de Sarrus (diagonales)"
+            >
+              <span className="det-pill-icon">📐</span>
+              <span className="det-pill-name">Método de Sarrus</span>
+            </button>
+            <button
+              type="button"
+              className={`det-pill ${detMethod === 'cofactors' ? 'active' : ''}`}
+              onClick={() => onDetMethodChange?.('cofactors')}
+              title="Calcular determinantes mediante Expansión por Cofactores (Laplace)"
+            >
+              <span className="det-pill-icon">🔢</span>
+              <span className="det-pill-name">Método de Cofactores</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

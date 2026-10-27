@@ -1,5 +1,5 @@
 import { Fraction } from '../fraction';
-import { cloneMatrix, matrixToTex, calculateDeterminantWithSteps } from '../matrixUtils';
+import { cloneMatrix, matrixToTex, augInvToTex, calculateDeterminantWithSteps } from '../matrixUtils';
 
 /**
  * Solves a linear system X = A^(-1) * B using Matrix Inversion
@@ -31,9 +31,15 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
   // Step 1: Calculate Determinant
   const detResult = calculateDeterminantWithSteps(A, options);
   const detA = detResult.value;
+  const detMethodLabel = {
+    sarrus: '📐 Sarrus (3×3)',
+    cofactors: '🔢 Cofactores (Laplace)',
+    formula2x2: 'Fórmula 2×2',
+    directo: 'Directo'
+  }[detResult.method] || 'Determinante';
 
   steps.push({
-    title: 'Paso 1: Cálculo del determinante \\det(A)',
+    title: `Paso 1: Cálculo del determinante — Método: ${detMethodLabel}`,
     description: 'Para que la matriz sea invertible, su determinante debe ser diferente de cero (\\det(A) \\neq 0).',
     latex: `\\det(A) = ${detA.toTex()}`,
     substeps: detResult.steps
@@ -49,7 +55,7 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
     };
   }
 
-  // Step 2: Compute Inverse A^(-1) using augmented [A | I_n]
+  // Step 2: Compute Inverse A^(-1) using augmented [A | I_n] via Gauss-Jordan
   const invSteps = [];
   const aug = Array.from({ length: n }, (_, r) => {
     const row = [...A[r]];
@@ -60,10 +66,9 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
   });
 
   invSteps.push({
-    title: 'Matriz ampliada [A | I_n]',
-    description: 'Se coloca la matriz identidad I a la derecha de A.',
-    latex: matrixToTex(aug, { isAugmented: false }),
-    matrix: cloneMatrix(aug)
+    title: 'Matriz ampliada inicial [A | I_n]',
+    description: 'Se construye la matriz ampliada uniendo A con la identidad I. Se aplicará Gauss-Jordan hasta obtener [I | A⁻¹].',
+    latex: augInvToTex(aug, n)
   });
 
   // Gauss-Jordan on aug to get [I_n | A^(-1)]
@@ -79,10 +84,10 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
       aug[col] = aug[pivotRow];
       aug[pivotRow] = temp;
 
+      const opTex = `\\text{Fila } ${col + 1} \\longleftrightarrow \\text{Fila } ${pivotRow + 1}`;
       invSteps.push({
         title: `Intercambiar Fila ${col + 1} y Fila ${pivotRow + 1}`,
-        latex: `F_{${col + 1}} \\leftrightarrow F_{${pivotRow + 1}}`,
-        matrix: cloneMatrix(aug)
+        latex: `${opTex}\\\\[0.6em] \\text{Nueva matriz aumentada [A | I]:} \\\\[0.3em] ${augInvToTex(aug, n)}`
       });
     }
 
@@ -94,11 +99,10 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
       for (let c = 0; c < 2 * n; c++) {
         aug[col][c] = aug[col][c].mul(invPivot);
       }
-
+      const opTex = `\\text{Fila } ${col + 1} \\div (${pivot.toTex()})`;
       invSteps.push({
-        title: `Hacer pivote = 1 en Fila ${col + 1}`,
-        latex: `F_{${col + 1}} \\to \\frac{1}{${pivot.toTex()}} \\cdot F_{${col + 1}}`,
-        matrix: cloneMatrix(aug)
+        title: `Normalizar Fila ${col + 1}: dividir entre ${pivot.toTex()}`,
+        latex: `${opTex}\\\\[0.6em] \\text{Nueva matriz aumentada [A | I]:} \\\\[0.3em] ${augInvToTex(aug, n)}`
       });
     }
 
@@ -112,13 +116,12 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
 
         const factorTex = factor.abs().toTex();
         const opTex = factor.isNegative()
-          ? `F_{${r + 1}} \\to F_{${r + 1}} + (${factorTex}) \\cdot F_{${col + 1}}`
-          : `F_{${r + 1}} \\to F_{${r + 1}} - (${factorTex}) \\cdot F_{${col + 1}}`;
+          ? `\\text{Fila } ${r + 1} + (${factorTex}) \\cdot \\text{Fila } ${col + 1}`
+          : `\\text{Fila } ${r + 1} - (${factorTex}) \\cdot \\text{Fila } ${col + 1}`;
 
         invSteps.push({
-          title: `Hacer cero en (${r + 1}, ${col + 1})`,
-          latex: opTex,
-          matrix: cloneMatrix(aug)
+          title: `Hacer cero en la Fila ${r + 1}: restar (${factor.toTex()}) veces la Fila ${col + 1}`,
+          latex: `${opTex}\\\\[0.6em] \\text{Nueva matriz aumentada [A | I]:} \\\\[0.3em] ${augInvToTex(aug, n)}`
         });
       }
     }
@@ -127,10 +130,30 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
   // Extract A^(-1)
   const invA = aug.map(row => row.slice(n));
 
+  // Determine if A^(-1) contains fractions and find common denominator to give integer representation
+  let invLcm = 1n;
+  let hasFractions = false;
+  for (const row of invA) {
+    for (const val of row) {
+      if (val.d !== 1n) {
+        hasFractions = true;
+        // gcd-based lcm
+        let a = invLcm, b = val.d;
+        while (b !== 0n) { const t = b; b = a % b; a = t; }
+        invLcm = (invLcm / a) * val.d;
+      }
+    }
+  }
+
+  // Integer matrix = invA * invLcm
+  const intMatrixAInv = invA.map(row => row.map(val => val.mul(new Fraction(invLcm, 1n))));
+
   steps.push({
-    title: 'Paso 2: Cálculo de la matriz inversa A^{-1}',
-    description: 'Transformación de [A | I] a [I | A^{-1}] mediante operaciones elementales de Gauss-Jordan.',
-    latex: `A^{-1} = ${matrixToTex(invA)}`,
+    title: 'Paso 2: Obtención de la Matriz Inversa A⁻¹ mediante Gauss-Jordan',
+    description: 'Se realizaron las operaciones sobre la matriz ampliada [A | I] hasta llegar a [I | A⁻¹]. En cada paso se observa la nueva matriz resultante.',
+    latex: hasFractions && invLcm > 1n
+      ? `A^{-1} = ${matrixToTex(invA)} = \\dfrac{1}{${invLcm.toString()}}\\, ${matrixToTex(intMatrixAInv)}`
+      : `A^{-1} = ${matrixToTex(invA)}`,
     matrix: cloneMatrix(invA),
     substeps: invSteps
   });
@@ -149,7 +172,7 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
       const bVal = B[j];
       const prod = aVal.mul(bVal);
       sum = sum.add(prod);
-      productTerms.push(`(${aVal.toTex()}) \\cdot (${bVal.toTex()})`);
+      productTerms.push(`\\left(${aVal.toTex()}\\right)\\!\\left(${bVal.toTex()}\\right)`);
     }
 
     solution.push({
@@ -161,13 +184,33 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
 
     multSteps.push({
       variable: varNames[i],
-      latex: `${varNames[i]} = ${productTerms.join(' + ')} = ${sum.toTex()}`
+      latex: `${varNames[i]} = ${productTerms.join(' + ')} = \\boxed{${sum.toTex()}}`
     });
   }
 
+  // Check if solution has fractions to compute scaled integer solution
+  let solLcm = 1n;
+  let solHasFractions = false;
+  for (const s of solution) {
+    if (s.fraction.d !== 1n) {
+      solHasFractions = true;
+      let a = solLcm, b = s.fraction.d;
+      while (b !== 0n) { const t = b; b = a % b; a = t; }
+      solLcm = (solLcm / a) * s.fraction.d;
+    }
+  }
+
+  const integerSolution = solHasFractions && solLcm > 1n
+    ? solution.map(s => ({
+        variable: s.variable,
+        fraction: s.fraction.mul(new Fraction(solLcm, 1n)),
+        tex: s.fraction.mul(new Fraction(solLcm, 1n)).toTex()
+      }))
+    : null;
+
   steps.push({
-    title: 'Paso 3: Producto matricial X = A^{-1} \\cdot B',
-    description: 'Se multiplica la matriz inversa obtenida por el vector de términos independientes.',
+    title: 'Paso 3: Producto X = A⁻¹ · B (Solución del sistema)',
+    description: 'Se multiplica la matriz inversa obtenida por el vector de términos independientes B.',
     latex: `\\begin{pmatrix} ${varNames.join(' \\\\ ')} \\end{pmatrix} = ${matrixToTex(invA)} \\cdot ${bVectorTex}`,
     multiplicationDetails: multSteps
   });
@@ -176,9 +219,16 @@ export function solveInverseMatrix(matrixA, vectorB, options = {}) {
     status: 'determinado',
     statusText: 'Sistema Compatible Determinado (Solución Única)',
     detA,
+    detMethod: detMethodLabel,
     invA,
+    hasFractions,
+    invLcm: invLcm.toString(),
+    intMatrixAInv,
+    solHasFractions,
+    solLcm: solLcm.toString(),
+    integerSolution,
     solution,
     steps,
-    summary: `La matriz inversa existe (\\det(A) = ${detA.toTex()} \\neq 0). Multiplicando A^{-1} \\cdot B se obtiene la solución única.`
+    summary: `La matriz inversa existe (\\det(A) = ${detA.toTex()} \\neq 0) calculada por ${detMethodLabel}. Al multiplicar A^{-1} \\cdot B se obtiene la solución única.`
   };
 }

@@ -35,6 +35,8 @@ export default function App() {
   // Resolution state
   const [activeMethod, setActiveMethod] = useState(null);
   const [result, setResult] = useState(null);
+  const [detMethod, setDetMethod] = useState('sarrus'); // 'sarrus' or 'cofactors'
+  const [problemContext, setProblemContext] = useState(null); // 'vehicular' or 'quimico'
 
   // Variable names computed from count and style
   const varNames = useMemo(() => {
@@ -89,6 +91,7 @@ export default function App() {
     setCols(clampedCols);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleRemoveColumn = (colIndex) => {
@@ -98,6 +101,7 @@ export default function App() {
     setCols(newCols);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleAddColumn = () => {
@@ -107,6 +111,7 @@ export default function App() {
     setCols(newCols);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleRemoveRow = (rowIndex) => {
@@ -117,6 +122,7 @@ export default function App() {
     setRows(newRows);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleAddRow = () => {
@@ -127,6 +133,7 @@ export default function App() {
     setRows(newRows);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleLoadUserSystem = () => {
@@ -140,6 +147,7 @@ export default function App() {
     setVectorB(['3', '5', '7']);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleClear = () => {
@@ -147,6 +155,7 @@ export default function App() {
     setVectorB(Array.from({ length: rows }, () => ''));
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleRandom = () => {
@@ -165,6 +174,7 @@ export default function App() {
     setVectorB(newB);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleApplyMatrix = (newA, newB) => {
@@ -177,6 +187,7 @@ export default function App() {
     setInputMode('cells');
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
   const handleSelectExample = (newA, newB) => {
@@ -188,21 +199,28 @@ export default function App() {
     setVectorB(newB);
     setResult(null);
     setActiveMethod(null);
+    setProblemContext(null);
   };
 
-  const handleSolve = (methodId) => {
-    setActiveMethod(methodId);
+  const handleSolve = (methodId, overrideContext = undefined, overrideDetMethod = undefined) => {
+    const targetMethod = methodId || activeMethod || 'gauss';
+    setActiveMethod(targetMethod);
+
+    const activeCtx = overrideContext !== undefined ? overrideContext : problemContext;
+    const activeDet = overrideDetMethod !== undefined ? overrideDetMethod : detMethod;
 
     const options = {
       variableNames: varNames,
       useDecimal: numFormat === 'decimal',
-      decimals: decimalPlaces
+      decimals: decimalPlaces,
+      detMethod: activeDet,
+      context: activeCtx
     };
 
     let solveOutput = null;
 
     try {
-      switch (methodId) {
+      switch (targetMethod) {
         case 'gauss':
           solveOutput = solveGauss(matrixA, vectorB, options);
           break;
@@ -236,6 +254,16 @@ export default function App() {
         steps: []
       });
     }
+  };
+
+  const handleContextChange = (newContext) => {
+    setProblemContext(newContext);
+    handleSolve(activeMethod, newContext);
+  };
+
+  const handleDetMethodChange = (newDetMethod) => {
+    setDetMethod(newDetMethod);
+    handleSolve(activeMethod, undefined, newDetMethod);
   };
 
   const getMethodDisplayName = (id) => {
@@ -306,6 +334,8 @@ export default function App() {
             isSquare={isSquare}
             rows={rows}
             cols={cols}
+            detMethod={detMethod}
+            onDetMethodChange={handleDetMethodChange}
           />
         </section>
 
@@ -316,6 +346,7 @@ export default function App() {
             numFormat={numFormat}
             decimalPlaces={decimalPlaces}
             varNames={varNames}
+            onContextChange={handleContextChange}
           />
         </section>
       </main>

@@ -364,6 +364,67 @@ export default function MatrixInput({
         </div>
       ) : null}
 
+      {/* Side-by-side preview: Sistema de Ecuaciones y Matriz Asociada */}
+      <div className="equations-and-matrix-preview-card">
+        <div className="preview-columns-row">
+          <div className="preview-column">
+            <span className="preview-column-title">
+              📋 Sistema de Ecuaciones Lineales:
+            </span>
+            <div className="equations-system-display">
+              <MathView
+                block
+                math={`\\begin{cases} ${Array.from({ length: rows })
+                  .map((_, r) => {
+                    const terms = [];
+                    for (let c = 0; c < cols; c++) {
+                      const coeff = matrixA[r]?.[c] ?? '0';
+                      const varName = varNames[c] || `x_{${c + 1}}`;
+                      if (coeff === '' || coeff === '0') continue;
+                      if (coeff === '1') {
+                        terms.push(terms.length === 0 ? varName : `+ ${varName}`);
+                      } else if (coeff === '-1') {
+                        terms.push(`- ${varName}`);
+                      } else if (coeff.startsWith('-')) {
+                        terms.push(`- ${coeff.slice(1)}\\,${varName}`);
+                      } else {
+                        terms.push(terms.length === 0 ? `${coeff}\\,${varName}` : `+ ${coeff}\\,${varName}`);
+                      }
+                    }
+                    const bVal = vectorB[r] === '' ? '0' : vectorB[r];
+                    const left = terms.length > 0 ? terms.join(' ') : '0';
+                    return `${left} = ${bVal}`;
+                  })
+                  .join(' \\\\[0.35em] ')} \\end{cases}`}
+              />
+            </div>
+          </div>
+
+          <div className="preview-column-divider"></div>
+
+          <div className="preview-column">
+            <span className="preview-column-title">
+              🔢 Matriz Aumentada Asociada [A | B]:
+            </span>
+            <div className="associated-matrix-display">
+              <MathView
+                block
+                math={`\\left(\\begin{array}{${'c'.repeat(cols)}|c} ${Array.from({ length: rows })
+                  .map((_, r) => {
+                    const rowCells = [];
+                    for (let c = 0; c < cols; c++) {
+                      rowCells.push(matrixA[r]?.[c] === '' ? '0' : matrixA[r][c]);
+                    }
+                    rowCells.push(vectorB[r] === '' ? '0' : vectorB[r]);
+                    return rowCells.join(' & ');
+                  })
+                  .join(' \\\\[0.35em] ')} \\end{array}\\right)`}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Calculate Command Center - IMPOSSIBLE TO MISS */}
       <div className="matrix-calculate-section">
         <div className="calculate-main-bar">

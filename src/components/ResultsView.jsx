@@ -17,7 +17,8 @@ export default function ResultsView({
   methodName,
   numFormat,
   decimalPlaces,
-  varNames
+  varNames,
+  onContextChange
 }) {
   const [copied, setCopied] = useState(false);
   const [expandAll, setExpandAll] = useState(true);
@@ -181,6 +182,119 @@ export default function ResultsView({
             </div>
           </div>
         )}
+
+        {/* Solution Box if Indeterminado (Particular solution in integers + Application context buttons) */}
+        {result.status === 'indeterminado' && result.particularSolution && (
+          <div className="particular-solution-card">
+            <div className="particular-solution-header">
+              <h4 className="solution-box-title">
+                {result.context === 'vehicular'
+                  ? '🚗 Solución Ajustada a Flujo Vehicular (Números Naturales > 0):'
+                  : result.context === 'quimico'
+                  ? '⚗️ Solución Ajustada a Balance Químico (Coeficientes Enteros Positivos):'
+                  : 'Solución Particular (Enteros / Números Naturales):'}
+              </h4>
+              {result.freeVarNames && result.freeVarNames.length > 0 && (
+                <span className="free-vars-badge">
+                  Variables libres: {result.freeVarNames.join(', ')}
+                </span>
+              )}
+            </div>
+
+            <p className="particular-solution-desc">
+              {result.context === 'vehicular'
+                ? 'Para modelar el flujo de vehículos en intersecciones o calles, las cantidades deben ser valores enteros positivos. El algoritmo ajustó las variables libres para obtener un flujo físicamente consistente:'
+                : result.context === 'quimico'
+                ? 'En una reacción química, los coeficientes estequiométricos deben ser números naturales enteros mínimos (no fraccionarios ni negativos). Se escaló el sistema para balancear la ecuación:'
+                : 'Al existir infinitas soluciones, se asignó un valor entero no fraccionario a las variables libres y se multiplicó por el m.c.m. de los denominadores para garantizar resultados en números enteros/naturales:'}
+            </p>
+
+            {/* Context selection buttons: Flujo vehicular / Balance químico */}
+            <div className="context-selection-box">
+              <span className="context-selection-label">
+                🎯 Ajustar a contexto del problema:
+              </span>
+              <div className="context-buttons-row">
+                <button
+                  type="button"
+                  className={`context-btn btn-traffic ${result.context === 'vehicular' ? 'active' : ''}`}
+                  onClick={() => onContextChange?.('vehicular')}
+                  title="Ajustar el sistema de infinitas soluciones al contexto de Flujo Vehicular (flujos enteros positivos)"
+                >
+                  <span className="context-emoji">🚗</span>
+                  <div className="context-btn-text">
+                    <strong>Flujo vehicular</strong>
+                    <small>Tránsito y flujos en redes</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`context-btn btn-chemical ${result.context === 'quimico' ? 'active' : ''}`}
+                  onClick={() => onContextChange?.('quimico')}
+                  title="Ajustar el sistema de infinitas soluciones al contexto de Balance Químico (coeficientes estequiométricos enteros)"
+                >
+                  <span className="context-emoji">⚗️</span>
+                  <div className="context-btn-text">
+                    <strong>Balance químico</strong>
+                    <small>Reacciones estequiométricas</small>
+                  </div>
+                </button>
+                {result.context && (
+                  <button
+                    type="button"
+                    className="context-btn btn-reset-context"
+                    onClick={() => onContextChange?.(null)}
+                    title="Restablecer a solución particular estándar"
+                  >
+                    <span>Restablecer estándar</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="solution-items-grid">
+              {result.particularSolution.map((item, idx) => (
+                <div key={idx} className="solution-variable-card">
+                  <div className="var-label">
+                    <MathView math={item.variable} />
+                  </div>
+                  <div className="var-equals">=</div>
+                  <div className="var-value">
+                    <MathView math={item.tex} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Integer scaling card for Inverse Matrix if fractions occurred */}
+        {result.hasFractions && result.integerSolution && (
+          <div className="inverse-integer-card">
+            <div className="inv-int-header">
+              <h4 className="solution-box-title">
+                ✨ Solución escalada a Números Naturales / Enteros:
+              </h4>
+              <span className="lcm-badge">Factor común: × {result.solLcm}</span>
+            </div>
+            <p className="particular-solution-desc">
+              Dado que la matriz inversa contiene fracciones, se multiplicó el sistema por el m.c.m. de los denominadores ({result.solLcm}) para expresar el vector solución en números enteros/naturales:
+            </p>
+            <div className="solution-items-grid">
+              {result.integerSolution.map((item, idx) => (
+                <div key={idx} className="solution-variable-card">
+                  <div className="var-label">
+                    <MathView math={item.variable} />
+                  </div>
+                  <div className="var-equals">=</div>
+                  <div className="var-value">
+                    <MathView math={item.tex} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Step by step section */}
@@ -245,7 +359,9 @@ export default function ResultsView({
 
                       {step.substeps && step.substeps.length > 0 && (
                         <div className="substeps-block">
-                          <h5 className="substeps-title">Detalles del determinante:</h5>
+                          <h5 className="substeps-title">
+                            {step.substepsTitle || 'Detalles del procedimiento:'}
+                          </h5>
                           {step.substeps.map((sub, sIdx) => (
                             <div key={sIdx} className="substep-item">
                               <span className="substep-title">{sub.title}</span>

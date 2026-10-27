@@ -2,7 +2,8 @@ import { Fraction } from '../fraction';
 import { cloneMatrix, matrixToTex, determinantToTex, calculateDeterminantWithSteps } from '../matrixUtils';
 
 /**
- * Solves a linear system using Cramer's Rule
+ * Solves a linear system using Cramer's Rule.
+ * Uses Sarrus for 3×3 matrices, Cofactor expansion for n≥4.
  */
 export function solveCramer(matrixA, vectorB, options = {}) {
   const { variableNames = [] } = options;
@@ -28,13 +29,21 @@ export function solveCramer(matrixA, vectorB, options = {}) {
   const A = matrixA.map(row => row.map(c => (c instanceof Fraction ? c : Fraction.fromString(String(c)))));
   const B = vectorB.map(b => (b instanceof Fraction ? b : Fraction.fromString(String(b))));
 
+  // Determine and display the determinant method
+  const chosen = options.detMethod || (n === 3 ? 'sarrus' : 'cofactors');
+  const detMethodLabel = chosen === 'sarrus'
+    ? '📐 Método de Sarrus'
+    : chosen === 'cofactors'
+    ? '🔢 Método de Cofactores (Laplace)'
+    : 'Fórmula directa';
+
   // Step 1: Principal determinant Delta = det(A)
-  const detResult = calculateDeterminantWithSteps(A, options);
+  const detResult = calculateDeterminantWithSteps(A, { ...options, detMethod: chosen });
   const delta = detResult.value;
 
   steps.push({
-    title: 'Paso 1: Cálculo del determinante del sistema (\\Delta)',
-    description: 'Se calcula el determinante de la matriz de coeficientes A.',
+    title: `Paso 1: Determinante del sistema (Δ) — ${detMethodLabel}`,
+    description: 'Se calcula el determinante de la matriz de coeficientes A. Si Δ ≠ 0, el sistema tiene solución única.',
     latex: `\\Delta = ${determinantToTex(A)} = ${delta.toTex()}`,
     substeps: detResult.steps
   });
@@ -51,7 +60,7 @@ export function solveCramer(matrixA, vectorB, options = {}) {
       return newRow;
     });
 
-    const detAiResult = calculateDeterminantWithSteps(Ai, options);
+    const detAiResult = calculateDeterminantWithSteps(Ai, { ...options, detMethod: chosen });
     const deltaI = detAiResult.value;
     if (!deltaI.isZero()) anyNonZeroDeltaI = true;
 
@@ -63,8 +72,8 @@ export function solveCramer(matrixA, vectorB, options = {}) {
     });
 
     steps.push({
-      title: `Paso ${i + 2}: Cálculo de \\Delta_{${varNames[i]}}`,
-      description: `Se reemplaza la columna ${i + 1} de la matriz A por el vector de términos independientes B.`,
+      title: `Paso ${i + 2}: Δ_{${varNames[i]}} — columna ${i + 1} reemplazada por B`,
+      description: `Se reemplaza la columna ${i + 1} de la matriz A por el vector B para calcular Δ_{${varNames[i]}}.`,
       latex: `\\Delta_{${varNames[i]}} = ${determinantToTex(Ai)} = ${deltaI.toTex()}`,
       substeps: detAiResult.steps
     });
@@ -79,7 +88,7 @@ export function solveCramer(matrixA, vectorB, options = {}) {
         delta,
         steps,
         cramerVariables,
-        summary: `Como \\Delta = 0 y al menos uno de los determinantes de las incógnitas \\Delta_i \\neq 0, según la Regla de Cramer el sistema es incompatible y no posee solución.`
+        summary: `Como \\Delta = 0 y al menos uno de los determinantes \\Delta_i \\neq 0, el sistema es incompatible y no posee solución.`
       };
     } else {
       return {
@@ -88,7 +97,7 @@ export function solveCramer(matrixA, vectorB, options = {}) {
         delta,
         steps,
         cramerVariables,
-        summary: `Como \\Delta = 0 y todos los \\Delta_i = 0, el sistema no tiene solución única (es compatible indeterminado con infinitas soluciones o incompatible si las ecuaciones son contradictorias). Se recomienda aplicar el Método de Gauss para analizar su grado de libertad.`
+        summary: `Como \\Delta = 0 y todos los \\Delta_i = 0, el sistema no tiene solución única (infinitas soluciones o incompatible). Se recomienda aplicar el Método de Gauss para analizarlo.`
       };
     }
   }
@@ -110,23 +119,24 @@ export function solveCramer(matrixA, vectorB, options = {}) {
 
     finalCalculations.push({
       variable: varNames[i],
-      latex: `${varNames[i]} = \\frac{\\Delta_{${varNames[i]}}}{\\Delta} = \\frac{${deltaI.toTex()}}{${delta.toTex()}} = ${xi.toTex()}`
+      latex: `${varNames[i]} = \\dfrac{\\Delta_{${varNames[i]}}}{\\Delta} = \\dfrac{${deltaI.toTex()}}{${delta.toTex()}} = \\boxed{${xi.toTex()}}`
     });
   }
 
   steps.push({
-    title: `Paso final: Cálculo de las incógnitas (${varNames.join(', ')})`,
-    description: 'Se divide cada determinante \\Delta_i entre el determinante del sistema \\Delta.',
-    latex: finalCalculations.map(c => c.latex).join(' \\\\ \n')
+    title: `Paso final: Solución — ${varNames.join(', ')}`,
+    description: 'Se divide cada Δᵢ entre el determinante del sistema Δ para obtener el valor de cada incógnita.',
+    latex: finalCalculations.map(c => c.latex).join(' \\\\\\\\ \n')
   });
 
   return {
     status: 'determinado',
     statusText: 'Sistema Compatible Determinado (Solución Única)',
     delta,
+    detMethod: detMethodLabel,
     solution,
     cramerVariables,
     steps,
-    summary: `El determinante del sistema es diferente de cero (\\Delta = ${delta.toTex()} \\neq 0). Aplicando la Regla de Cramer se determinan los valores de todas las incógnitas.`
+    summary: `Determinante calculado por ${detMethodLabel}: \\Delta = ${delta.toTex()} \\neq 0. Aplicando Cramer se obtiene la solución única.`
   };
 }

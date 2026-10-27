@@ -110,3 +110,27 @@ body {
   text-align: center;
   width: 100%;
 }
+
+/* Espaciado claro y legible entre fracciones y dentro de matrices */
+.katex .mfrac {
+  margin: 0 0.22em;
+  padding: 0 0.1em;
+}
+
+.katex .col-align-c > .vlist-t,
+.katex .col-align-r > .vlist-t,
+.katex .col-align-l > .vlist-t {
+  padding: 0 0.45em !important;
+}
+
+.katex .arraycolsep {
+  width: 0.6em !important;
+}
+
+.katex table.matrix td,
+.katex .arraycell,
+.katex .col-align-c,
+.katex .col-align-r,
+.katex .col-align-l {
+  padding: 0.25em 0.55em !important;
+}

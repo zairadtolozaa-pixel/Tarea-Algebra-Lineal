@@ -1317,6 +1317,266 @@
   border-top: 1px dashed rgba(16, 185, 129, 0.2);
 }
 
+/* Particular Solution Box (Indeterminado) */
+.particular-solution-card {
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+
+.particular-solution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.particular-solution-header .solution-box-title {
+  color: #fbbf24;
+  margin-bottom: 0;
+}
+
+.free-vars-badge {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.particular-solution-desc {
+  font-size: 0.86rem;
+  color: #cbd5e1;
+  margin-bottom: 14px;
+  line-height: 1.45;
+}
+
+.particular-solution-card .solution-variable-card {
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.particular-solution-card .var-value {
+  color: #fef08a;
+}
+
+/* Context selection buttons for Infinite solutions */
+.context-selection-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.context-selection-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.context-buttons-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.context-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.context-btn:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
+}
+
+.context-btn.btn-traffic.active {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.context-btn.btn-chemical.active {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #c084fc;
+  box-shadow: 0 0 12px rgba(192, 132, 252, 0.3);
+}
+
+.context-emoji {
+  font-size: 1.35rem;
+}
+
+.context-btn-text strong {
+  display: block;
+  font-size: 0.86rem;
+  color: #ffffff;
+}
+
+.context-btn-text small {
+  display: block;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.btn-reset-context {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  padding: 6px 12px;
+}
+
+.btn-reset-context:hover {
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Scaled integer solution for Inverse Matrix */
+.inverse-integer-card {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+
+.inv-int-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lcm-badge {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+/* Determinant Method Selector (Sarrus vs Cofactores) */
+.det-method-selector-card {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.det-selector-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.det-selector-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.det-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.det-pill:hover {
+  border-color: #fbbf24;
+  color: #ffffff;
+}
+
+.det-pill.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: #fbbf24;
+  color: #fef08a;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+/* Side-by-side preview: Equations + Matrix */
+.equations-and-matrix-preview-card {
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+.preview-columns-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.preview-column {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.preview-column-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
+.preview-column-divider {
+  width: 1px;
+  height: 80px;
+  background: var(--border-subtle);
+}
+
+.equations-system-display,
+.associated-matrix-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
 /* Steps Accordion */
 .steps-accordion-container {
   display: flex;

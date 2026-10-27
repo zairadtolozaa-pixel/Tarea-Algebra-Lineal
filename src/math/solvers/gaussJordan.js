@@ -1,5 +1,5 @@
 import { Fraction } from '../fraction';
-import { cloneMatrix, matrixToTex } from '../matrixUtils';
+import { cloneMatrix, matrixToTex, computeParticularSolution } from '../matrixUtils';
 
 /**
  * Solves a linear system [A|b] using Gauss-Jordan Elimination (Reduced Row Echelon Form)
@@ -50,9 +50,9 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
       M[pivotRow] = temp;
 
       steps.push({
-        title: `Intercambio de filas: Fila ${leadRow + 1} y Fila ${pivotRow + 1}`,
+        title: `Intercambiar Fila ${leadRow + 1} y Fila ${pivotRow + 1}`,
         description: `Se intercambian las filas para colocar un pivote distinto de cero en la diagonal.`,
-        operation: `F_{${leadRow + 1}} \\leftrightarrow F_{${pivotRow + 1}}`,
+        operation: `\\text{Fila } ${leadRow + 1} \\longleftrightarrow \\text{Fila } ${pivotRow + 1}`,
         latex: matrixToTex(M, { isAugmented: true }),
         matrix: cloneMatrix(M),
         highlightRows: [leadRow, pivotRow]
@@ -69,9 +69,9 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
       }
 
       steps.push({
-        title: `Normalizar Fila ${leadRow + 1} (Hacer pivote = 1)`,
+        title: `Normalizar Fila ${leadRow + 1}: hacer pivote = 1`,
         description: `Se divide la fila ${leadRow + 1} entre ${pivot.toTex()} para que el pivote sea 1.`,
-        operation: `F_{${leadRow + 1}} \\to \\frac{1}{${pivot.toTex()}} \\cdot F_{${leadRow + 1}}`,
+        operation: `\\text{Fila } ${leadRow + 1} \\div (${pivot.toTex()})`,
         latex: matrixToTex(M, { isAugmented: true }),
         matrix: cloneMatrix(M),
         highlightRows: [leadRow]
@@ -89,11 +89,11 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
 
         const factorTex = factor.abs().toTex();
         const opTex = factor.isNegative()
-          ? `F_{${r + 1}} \\to F_{${r + 1}} + (${factorTex}) \\cdot F_{${leadRow + 1}}`
-          : `F_{${r + 1}} \\to F_{${r + 1}} - (${factorTex}) \\cdot F_{${leadRow + 1}}`;
+          ? `\\text{Fila } ${r + 1} + (${factorTex}) \\cdot \\text{Fila } ${leadRow + 1}`
+          : `\\text{Fila } ${r + 1} - (${factorTex}) \\cdot \\text{Fila } ${leadRow + 1}`;
 
         steps.push({
-          title: `Hacer cero en la Fila ${r + 1}, Columna ${col + 1}`,
+          title: `Hacer cero en la Fila ${r + 1}: restar (${factor.toTex()}) veces la Fila ${leadRow + 1}`,
           description: `Se elimina el elemento en (${r + 1}, ${col + 1}) restando ${factor.toTex()} veces la fila pivote.`,
           operation: opTex,
           latex: matrixToTex(M, { isAugmented: true }),
@@ -107,7 +107,7 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
   }
 
   steps.push({
-    title: 'Forma escalonada reducida por filas (RREF)',
+    title: 'Forma escalonada reducida por filas (RREF) obtenida',
     description: 'La matriz ha sido transformada a la forma canónica escalonada reducida.',
     latex: matrixToTex(M, { isAugmented: true }),
     matrix: cloneMatrix(M),
@@ -118,13 +118,22 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
   let rankA = 0;
   let rankM = 0;
   let inconsistentRow = -1;
+  const pivotCols = [];
 
   for (let r = 0; r < m; r++) {
-    const isRowZeroA = M[r].slice(0, n).every(val => val.isZero());
+    const rowA = M[r].slice(0, n);
+    const isRowZeroA = rowA.every(val => val.isZero());
     const isBZero = M[r][n].isZero();
 
     if (!isRowZeroA) {
       rankA++;
+      // Find pivot column of this row
+      for (let c = 0; c < n; c++) {
+        if (!M[r][c].isZero()) {
+          pivotCols.push({ row: r, col: c });
+          break;
+        }
+      }
     }
     if (!isRowZeroA || !isBZero) {
       rankM++;
@@ -144,19 +153,37 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
       inconsistentRow: inconsistentRow + 1,
       inconsistentEq: `0 = ${bVal}`,
       steps,
-      summary: `La fila ${inconsistentRow + 1} de la forma reducida produce la contradicción 0 = ${bVal}. El sistema no tiene solución.`
+      summary: `La fila ${inconsistentRow + 1} de la RREF produce la contradicción 0 = ${bVal}. El sistema no tiene solución.`
     };
   }
 
   if (rankA < n) {
+    const context = options.context || null;
+    const partSol = computeParticularSolution(M, n, m, pivotCols, context);
+    const partSolFormatted = partSol.map((v, idx) => ({
+      variable: varNames[idx],
+      fraction: v,
+      tex: v.toTex(),
+      decimal: v.toDecimalString()
+    }));
+
+    // Identify free variable names
+    const pivotColIndices = new Set(pivotCols.map(p => p.col));
+    const freeVarNames = varNames.filter((_, idx) => !pivotColIndices.has(idx));
+
     return {
       status: 'indeterminado',
       statusText: 'Sistema Compatible Indeterminado (Infinitas Soluciones)',
       rankA,
       rankM,
       degreesOfFreedom: n - rankA,
+      freeVarNames,
+      context,
+      particularSolution: partSolFormatted,
+      M: cloneMatrix(M),
+      pivotCols,
       steps,
-      summary: `El rango es ${rankA} < ${n} incógnitas. El sistema cuenta con infinitas soluciones.`
+      summary: `El rango es ${rankA} < ${n} incógnitas. El sistema tiene infinitas soluciones con ${n - rankA} grado(s) de libertad. Las variables libres son: ${freeVarNames.join(', ')}.`
     };
   }
 
@@ -179,6 +206,6 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
     rankM,
     solution,
     steps,
-    summary: `La parte izquierda es la matriz identidad I_{${n}}. Las soluciones se leen directamente de la columna de términos independientes.`
+    summary: `El rango de la matriz es igual al número de incógnitas (rango = ${rankA} = ${n}). La solución se lee directamente de la RREF.`
   };
 }

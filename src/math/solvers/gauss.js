@@ -1,5 +1,5 @@
 import { Fraction } from '../fraction';
-import { cloneMatrix, matrixToTex } from '../matrixUtils';
+import { cloneMatrix, matrixToTex, computeParticularSolutionGauss } from '../matrixUtils';
 
 /**
  * Solves a linear system [A|b] using Gaussian Elimination (Triangularization + Back-substitution)
@@ -52,9 +52,9 @@ export function solveGauss(matrixA, vectorB, options = {}) {
       M[pivotRow] = temp;
 
       steps.push({
-        title: `Intercambio de filas: Fila ${leadRow + 1} y Fila ${pivotRow + 1}`,
-        description: `El pivote en la posición (${leadRow + 1}, ${col + 1}) era cero, por lo que se intercambia con la fila ${pivotRow + 1}.`,
-        operation: `F_{${leadRow + 1}} \\leftrightarrow F_{${pivotRow + 1}}`,
+        title: `Intercambiar Fila ${leadRow + 1} y Fila ${pivotRow + 1}`,
+        description: `El pivote en la posición (${leadRow + 1}, ${col + 1}) era cero, por lo que se intercambian las filas.`,
+        operation: `\\text{Fila } ${leadRow + 1} \\longleftrightarrow \\text{Fila } ${pivotRow + 1}`,
         latex: matrixToTex(M, { isAugmented: true }),
         matrix: cloneMatrix(M),
         highlightRows: [leadRow, pivotRow]
@@ -74,11 +74,11 @@ export function solveGauss(matrixA, vectorB, options = {}) {
 
         const factorTex = factor.abs().toTex();
         const opTex = factor.isNegative()
-          ? `F_{${r + 1}} \\to F_{${r + 1}} + (${factorTex}) \\cdot F_{${leadRow + 1}}`
-          : `F_{${r + 1}} \\to F_{${r + 1}} - (${factorTex}) \\cdot F_{${leadRow + 1}}`;
+          ? `\\text{Fila } ${r + 1} + (${factorTex}) \\cdot \\text{Fila } ${leadRow + 1}`
+          : `\\text{Fila } ${r + 1} - (${factorTex}) \\cdot \\text{Fila } ${leadRow + 1}`;
 
         steps.push({
-          title: `Hacer cero en la Fila ${r + 1}, Columna ${col + 1}`,
+          title: `Hacer cero en la Fila ${r + 1}: restar (${factor.toTex()}) veces la Fila ${leadRow + 1}`,
           description: `Se multiplica la fila pivote ${leadRow + 1} por el factor ${factor.toTex()} y se resta a la fila ${r + 1}.`,
           operation: opTex,
           latex: matrixToTex(M, { isAugmented: true }),
@@ -103,6 +103,7 @@ export function solveGauss(matrixA, vectorB, options = {}) {
   let rankA = 0;
   let rankM = 0;
   let inconsistentRow = -1;
+  const pivotCols = [];
 
   for (let r = 0; r < m; r++) {
     const isRowZeroA = M[r].slice(0, n).every(val => val.isZero());
@@ -110,6 +111,12 @@ export function solveGauss(matrixA, vectorB, options = {}) {
 
     if (!isRowZeroA) {
       rankA++;
+      for (let c = 0; c < n; c++) {
+        if (!M[r][c].isZero()) {
+          pivotCols.push({ row: r, col: c });
+          break;
+        }
+      }
     }
     if (!isRowZeroA || !isBZero) {
       rankM++;
@@ -136,14 +143,31 @@ export function solveGauss(matrixA, vectorB, options = {}) {
 
   // Infinitely many solutions (Compatible Indeterminado)
   if (rankA < n) {
+    const context = options.context || null;
+    const partSol = computeParticularSolutionGauss(M, n, m, pivotCols, context);
+    const partSolFormatted = partSol.map((v, idx) => ({
+      variable: varNames[idx],
+      fraction: v,
+      tex: v.toTex(),
+      decimal: v.toDecimalString()
+    }));
+
+    const pivotColIndices = new Set(pivotCols.map(p => p.col));
+    const freeVarNames = varNames.filter((_, idx) => !pivotColIndices.has(idx));
+
     return {
       status: 'indeterminado',
       statusText: 'Sistema Compatible Indeterminado (Infinitas Soluciones)',
       rankA,
       rankM,
       degreesOfFreedom: n - rankA,
+      freeVarNames,
+      context,
+      particularSolution: partSolFormatted,
+      M: cloneMatrix(M),
+      pivotCols,
       steps,
-      summary: `El rango del sistema es ${rankA}, el cual es menor que el número de incógnitas (${n}). Por el Teorema de Rouché-Frobenius, el sistema tiene infinitas soluciones con ${n - rankA} grado(s) de libertad.`
+      summary: `El rango del sistema es ${rankA}, el cual es menor que el número de incógnitas (${n}). Por el Teorema de Rouché-Frobenius, el sistema tiene infinitas soluciones con ${n - rankA} grado(s) de libertad. Las variables libres son: ${freeVarNames.join(', ')}.`
     };
   }
 

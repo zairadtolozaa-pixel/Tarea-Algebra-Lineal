@@ -1,5 +1,17 @@
 import { Fraction } from './fraction';
 
+// ── BigInt helpers ──────────────────────────────────────────────────────────
+function gcdBigInt(a, b) {
+  a = a < 0n ? -a : a;
+  b = b < 0n ? -b : b;
+  while (b !== 0n) { const t = b; b = a % b; a = t; }
+  return a;
+}
+function lcmBigInt(a, b) {
+  if (a === 0n || b === 0n) return 1n;
+  return (a / gcdBigInt(a, b)) * (b < 0n ? -b : b);
+}
+
 /**
  * Utility functions for matrix manipulations using exact Fraction values.
  */
@@ -70,7 +82,132 @@ export function determinantToTex(matrix, options = {}) {
 }
 
 /**
- * Calculates determinant of an n x n Fraction matrix with step-by-step details.
+ * Renders augmented [A | I_n] matrix with vertical bar at column n.
+ */
+export function augInvToTex(aug, n) {
+  const colSpec = `{${'c'.repeat(n)}|${'c'.repeat(n)}}`;
+  const rowsTex = aug.map(row =>
+    row.map(val => (val instanceof Fraction ? val : Fraction.fromString(String(val))).toTex()).join(' & ')
+  ).join(' \\\\ \n');
+  return `\\left(\\begin{array}${colSpec}\n${rowsTex}\n\\end{array}\\right)`;
+}
+
+// ── Sarrus (solo 3×3) ────────────────────────────────────────────────────────
+function detSarrus(mat, options = {}) {
+  const [a, b, c] = mat[0];
+  const [d, e, f] = mat[1];
+  const [g, h, k] = mat[2];
+
+  const t1 = a.mul(e).mul(k);
+  const t2 = b.mul(f).mul(g);
+  const t3 = c.mul(d).mul(h);
+  const n1 = c.mul(e).mul(g);
+  const n2 = a.mul(f).mul(h);
+  const n3 = b.mul(d).mul(k);
+  const det = t1.add(t2).add(t3).sub(n1).sub(n2).sub(n3);
+
+  const steps = [
+    {
+      title: '📐 Método de Sarrus — Diagonales principales (↘) menos diagonales secundarias (↗)',
+      latex:
+        `\\det(A) = a_{11}a_{22}a_{33} + a_{12}a_{23}a_{31} + a_{13}a_{21}a_{32}` +
+        ` - a_{13}a_{22}a_{31} - a_{11}a_{23}a_{32} - a_{12}a_{21}a_{33}`
+    },
+    {
+      title: 'Sustitución de valores en Sarrus',
+      latex:
+        `\\det(A) = (${a.toTex()})(${e.toTex()})(${k.toTex()}) + (${b.toTex()})(${f.toTex()})(${g.toTex()}) + (${c.toTex()})(${d.toTex()})(${h.toTex()})` +
+        ` \\\\[0.4em]\\qquad - (${c.toTex()})(${e.toTex()})(${g.toTex()}) - (${a.toTex()})(${f.toTex()})(${h.toTex()}) - (${b.toTex()})(${d.toTex()})(${k.toTex()})`
+    },
+    {
+      title: 'Productos y resultado final',
+      latex:
+        `\\det(A) = ${t1.toTex()} + ${t2.toTex()} + ${t3.toTex()}` +
+        ` - (${n1.toTex()}) - (${n2.toTex()}) - (${n3.toTex()}) = \\boxed{${det.toTex()}}`
+    }
+  ];
+  return { value: det, steps, method: 'sarrus' };
+}
+
+// ── Cofactores / Laplace (recursivo) ─────────────────────────────────────────
+function detCofactors(mat, options = {}, depth = 0) {
+  const n = mat.length;
+
+  if (n === 1) {
+    return {
+      value: mat[0][0],
+      steps: [{ title: 'det(1×1)', latex: `\\det = ${mat[0][0].toTex()}` }],
+      method: 'cofactors'
+    };
+  }
+
+  if (n === 2) {
+    const a = mat[0][0], b = mat[0][1], cv = mat[1][0], d = mat[1][1];
+    const det = a.mul(d).sub(b.mul(cv));
+    return {
+      value: det,
+      steps: [{
+        title: 'det(2×2)',
+        latex: `= (${a.toTex()})(${d.toTex()}) - (${b.toTex()})(${cv.toTex()}) = ${det.toTex()}`
+      }],
+      method: 'cofactors'
+    };
+  }
+
+  const steps = [];
+  if (depth === 0) {
+    steps.push({
+      title: `🔢 Método de Cofactores (Expansión de Laplace) — Expansión por la Fila 1`,
+      latex: `\\det(A) = \\sum_{j=1}^{${n}} (-1)^{1+j}\\, a_{1j}\\, M_{1j}`
+    });
+  }
+
+  let det = Fraction.zero();
+  const termList = [];
+
+  for (let j = 0; j < n; j++) {
+    const aij = mat[0][j];
+    const signVal = (j % 2 === 0) ? Fraction.one() : Fraction.one().neg();
+    const minor = getSubmatrix(mat, 0, j);
+    const minorRes = detCofactors(minor, options, depth + 1);
+    const cofactor = signVal.mul(minorRes.value);
+    const term = aij.mul(cofactor);
+    det = det.add(term);
+
+    if (depth === 0) {
+      const signStr = j % 2 === 0 ? '(+)' : '(-)';
+      steps.push({
+        title: `Cofactor C_{1,${j + 1}}: elemento a_{1,${j+1}} = ${aij.toTex()}`,
+        latex:
+          `${signStr}\\; ${determinantToTex(minor)} = ${cofactor.toTex()}` +
+          `\\qquad \\Rightarrow \\quad a_{1,${j+1}} \\cdot C_{1,${j+1}} = (${aij.toTex()})(${cofactor.toTex()}) = ${term.toTex()}`
+      });
+    }
+    termList.push(term);
+  }
+
+  // Build sum latex
+  const sumTex = termList.map((t, i) => {
+    const tex = t.toTex();
+    if (i === 0) return tex;
+    return tex.startsWith('-') ? `\\; ${tex}` : `\\; +\\; ${tex}`;
+  }).join('');
+
+  if (depth === 0) {
+    steps.push({
+      title: 'Suma de todos los términos',
+      latex: `\\det(A) = ${sumTex} = \\boxed{${det.toTex()}}`
+    });
+  }
+
+  return { value: det, steps, method: 'cofactors' };
+}
+
+/**
+ * Calculates determinant using explicitly chosen method: 'sarrus' or 'cofactors'.
+ * - 2×2: direct cross-product formula
+ * - 3×3: Sarrus or Cofactors (Laplace) according to options.detMethod (defaults to Sarrus)
+ * - n>=4: Cofactors (Laplace)
  */
 export function calculateDeterminantWithSteps(matrix, options = {}) {
   const n = matrix.length;
@@ -78,131 +215,129 @@ export function calculateDeterminantWithSteps(matrix, options = {}) {
     throw new Error('La matriz debe ser cuadrada para calcular el determinante.');
   }
 
-  // Deep clone
   const mat = matrix.map(r => r.map(c => (c instanceof Fraction ? c : Fraction.fromString(String(c)))));
+  const chosenMethod = options.detMethod || (n === 3 ? 'sarrus' : 'cofactors');
 
   if (n === 1) {
     return {
       value: mat[0][0],
-      steps: [{
-        title: 'Determinante de orden 1',
-        latex: `|A| = ${mat[0][0].toTex(options.useDecimal, options.decimals)}`
-      }]
+      method: 'directo',
+      steps: [{ title: 'Determinante de orden 1 (valor único)', latex: `\\det(A) = ${mat[0][0].toTex()}` }]
     };
   }
 
   if (n === 2) {
-    const a = mat[0][0];
-    const b = mat[0][1];
-    const c = mat[1][0];
-    const d = mat[1][1];
-    const prod1 = a.mul(d);
-    const prod2 = b.mul(c);
+    const a = mat[0][0], b = mat[0][1], cv = mat[1][0], d = mat[1][1];
+    const prod1 = a.mul(d), prod2 = b.mul(cv);
     const det = prod1.sub(prod2);
-
     return {
       value: det,
+      method: 'formula2x2',
       steps: [{
-        title: 'Fórmula para matriz 2×2: |A| = (a_{11} \\cdot a_{22}) - (a_{12} \\cdot a_{21})',
-        latex: `\\det(A) = (${a.toTex()}) \\cdot (${d.toTex()}) - (${b.toTex()}) \\cdot (${c.toTex()}) = ${prod1.toTex()} - (${prod2.toTex()}) = ${det.toTex()}`
+        title: 'Fórmula 2×2: \\det(A) = a_{11}a_{22} - a_{12}a_{21}',
+        latex: `\\det(A) = (${a.toTex()})(${d.toTex()}) - (${b.toTex()})(${cv.toTex()}) = ${prod1.toTex()} - (${prod2.toTex()}) = \\boxed{${det.toTex()}}`
       }]
     };
   }
 
-  // For n >= 3, use row reduction to upper triangular form
-  // det(A) = (-1)^swaps * prod(diagonal)
-  const steps = [];
-  const A = mat.map(r => [...r]);
-  let detMultiplier = Fraction.one();
-  let swapCount = 0;
+  if (n === 3) {
+    if (chosenMethod === 'cofactors') {
+      return detCofactors(mat, options);
+    }
+    return detSarrus(mat, options);
+  }
 
-  steps.push({
-    title: 'Matriz inicial para cálculo de determinante',
-    latex: `\\Delta = ${determinantToTex(A, options)}`,
-    matrix: cloneMatrix(A)
-  });
+  // n >= 4: cofactor expansion (Laplace)
+  return detCofactors(mat, options);
+}
 
-  for (let col = 0; col < n; col++) {
-    // Find pivot
-    let pivotRow = -1;
-    for (let r = col; r < n; r++) {
-      if (!A[r][col].isZero()) {
-        pivotRow = r;
-        break;
+// ── Helpers for infinite-solutions particular solution ─────────────────────
+export function computeParticularSolution(M, n, m, pivotCols, context = null) {
+  // Free variable assignment based on application context:
+  // In traffic flow (vehicular) or chemical balancing (quimico), variables cannot be zero;
+  // assigning free variables = 1 (or small positive integer) produces natural numbers.
+  const freeVal = (context === 'vehicular' || context === 'quimico') ? Fraction.one() : Fraction.zero();
+  const pivotColSet = new Set(pivotCols.map(p => p.col));
+  const sol = Array.from({ length: n }, (_, idx) => pivotColSet.has(idx) ? Fraction.zero() : freeVal);
+
+  for (let k = 0; k < pivotCols.length; k++) {
+    const { row, col } = pivotCols[k];
+    let sum = M[row][n];
+    for (let j = 0; j < n; j++) {
+      if (!pivotColSet.has(j)) {
+        sum = sum.sub(M[row][j].mul(sol[j]));
       }
     }
+    sol[col] = sum;
+  }
 
-    if (pivotRow === -1) {
-      // Entire column is zero below diagonal, det is 0
-      steps.push({
-        title: `Columna ${col + 1} con ceros en la diagonal`,
-        latex: `\\text{Dado que todos los elementos en la columna ${col + 1} debajo de la diagonal son 0, } \\det(A) = 0`,
-        matrix: cloneMatrix(A)
-      });
-      return {
-        value: Fraction.zero(),
-        steps
-      };
+  // Scale to positive natural numbers / integers using LCM of denominators
+  let lcm = 1n;
+  for (const v of sol) {
+    if (v.d !== 0n) lcm = lcmBigInt(lcm, v.d);
+  }
+
+  let scaled = sol.map(v => v.mul(new Fraction(lcm, 1n)));
+
+  // If in application context (vehicular / chemical), ensure all values are strictly positive natural numbers (> 0)
+  if (context === 'vehicular' || context === 'quimico') {
+    // If any value is negative or zero, flip sign or adjust
+    const allNegative = scaled.every(v => v.isNegative() || v.isZero());
+    if (allNegative) {
+      scaled = scaled.map(v => v.neg());
     }
-
-    if (pivotRow !== col) {
-      // Swap rows col and pivotRow
-      const temp = A[col];
-      A[col] = A[pivotRow];
-      A[pivotRow] = temp;
-      detMultiplier = detMultiplier.neg();
-      swapCount++;
-
-      steps.push({
-        title: `Intercambiar Fila ${col + 1} y Fila ${pivotRow + 1} (el determinante cambia de signo)`,
-        latex: `F_{${col + 1}} \\leftrightarrow F_{${pivotRow + 1}} \\implies -\\det = ${determinantToTex(A, options)}`,
-        matrix: cloneMatrix(A)
-      });
+    // Also simplify by gcd of numerators to get smallest natural numbers
+    let g = 0n;
+    for (const v of scaled) {
+      const val = v.n < 0n ? -v.n : v.n;
+      if (val !== 0n) g = g === 0n ? val : gcdBigInt(g, val);
     }
-
-    const pivot = A[col][col];
-
-    // Eliminate below
-    for (let r = col + 1; r < n; r++) {
-      if (!A[r][col].isZero()) {
-        const factor = A[r][col].div(pivot);
-        for (let c = col; c < n; c++) {
-          A[r][c] = A[r][c].sub(factor.mul(A[col][c]));
-        }
-
-        const signStr = factor.isNegative()
-          ? `+ ${factor.abs().toTex()}`
-          : `- ${factor.toTex()}`;
-
-        steps.push({
-          title: `Hacer cero en fila ${r + 1}, columna ${col + 1}`,
-          latex: `F_{${r + 1}} \\to F_{${r + 1}} ${signStr} F_{${col + 1}}`,
-          matrix: cloneMatrix(A)
-        });
-      }
+    if (g > 1n) {
+      scaled = scaled.map(v => new Fraction(v.n / g, 1n));
     }
   }
 
-  // Multiply diagonal elements
-  let diagonalProduct = Fraction.one();
-  const diagTerms = [];
-  for (let i = 0; i < n; i++) {
-    diagonalProduct = diagonalProduct.mul(A[i][i]);
-    diagTerms.push(A[i][i].toTex(options.useDecimal, options.decimals));
+  return scaled;
+}
+
+export function computeParticularSolutionGauss(M, n, m, pivotCols, context = null) {
+  const freeVal = (context === 'vehicular' || context === 'quimico') ? Fraction.one() : Fraction.zero();
+  const pivotColSet = new Set(pivotCols.map(p => p.col));
+  const sol = Array.from({ length: n }, (_, idx) => pivotColSet.has(idx) ? Fraction.zero() : freeVal);
+
+  for (let i = pivotCols.length - 1; i >= 0; i--) {
+    const { row, col } = pivotCols[i];
+    let sum = M[row][n];
+    for (let j = col + 1; j < n; j++) {
+      sum = sum.sub(M[row][j].mul(sol[j]));
+    }
+    const pivot = M[row][col];
+    if (!pivot.isZero()) sol[col] = sum.div(pivot);
   }
 
-  const finalDet = detMultiplier.mul(diagonalProduct);
+  let lcm = 1n;
+  for (const v of sol) {
+    if (v.d !== 0n) lcm = lcmBigInt(lcm, v.d);
+  }
 
-  steps.push({
-    title: 'Producto de los elementos de la diagonal principal',
-    latex: `\\det(A) = ${swapCount % 2 === 1 ? '(-1) \\cdot ' : ''}(${diagTerms.join(' \\cdot ')}) = ${finalDet.toTex(options.useDecimal, options.decimals)}`,
-    matrix: cloneMatrix(A)
-  });
+  let scaled = sol.map(v => v.mul(new Fraction(lcm, 1n)));
 
-  return {
-    value: finalDet,
-    steps
-  };
+  if (context === 'vehicular' || context === 'quimico') {
+    const allNegative = scaled.every(v => v.isNegative() || v.isZero());
+    if (allNegative) {
+      scaled = scaled.map(v => v.neg());
+    }
+    let g = 0n;
+    for (const v of scaled) {
+      const val = v.n < 0n ? -v.n : v.n;
+      if (val !== 0n) g = g === 0n ? val : gcdBigInt(g, val);
+    }
+    if (g > 1n) {
+      scaled = scaled.map(v => new Fraction(v.n / g, 1n));
+    }
+  }
+
+  return scaled;
 }
 
 /**
