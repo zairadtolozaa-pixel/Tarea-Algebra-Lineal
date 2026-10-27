@@ -63,6 +63,8 @@ export default function ResultsView({
         return <CheckCircle className="status-icon green" size={24} />;
       case 'indeterminado':
         return <AlertTriangle className="status-icon amber" size={24} />;
+      case 'fraction_pause':
+        return <AlertTriangle className="status-icon amber" size={24} />;
       case 'incompatible':
       case 'singular':
       case 'error':
@@ -78,12 +80,14 @@ export default function ResultsView({
         return 'status-badge-determinado';
       case 'indeterminado':
         return 'status-badge-indeterminado';
+      case 'fraction_pause':
+        return 'status-badge-indeterminado';
       case 'incompatible':
       case 'singular':
       case 'error':
         return 'status-badge-incompatible';
       default:
-        return '';
+        return 'status-badge-default';
     }
   };
 
@@ -134,6 +138,49 @@ export default function ResultsView({
         {result.summary && (
           <div className="result-explanation">
             <MathView math={result.summary} />
+          </div>
+        )}
+
+        {/* Prompt Card when Fraction/Decimal was detected during resolution */}
+        {result.status === 'fraction_pause' && (
+          <div className="fraction-pause-card">
+            <div className="fraction-pause-banner">
+              <span className="fraction-pause-icon">⚠️</span>
+              <div>
+                <h4 className="fraction-pause-title">
+                  Fracción detectada en el procedimiento
+                </h4>
+                <p className="fraction-pause-subtitle">
+                  Para evitar mostrar fracciones o decimales y entregar exclusivamente números enteros / naturales, selecciona el flujo de aplicación:
+                </p>
+              </div>
+            </div>
+
+            <div className="fraction-pause-buttons">
+              <button
+                type="button"
+                className="context-btn btn-traffic pause-choice-btn"
+                onClick={() => onContextChange?.('vehicular')}
+              >
+                <span className="context-emoji">🚗</span>
+                <div className="context-btn-text">
+                  <strong>Flujo vehicular</strong>
+                  <small>Continuar ajustando a enteros positivos de tránsito</small>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className="context-btn btn-chemical pause-choice-btn"
+                onClick={() => onContextChange?.('quimico')}
+              >
+                <span className="context-emoji">⚗️</span>
+                <div className="context-btn-text">
+                  <strong>Balance químico</strong>
+                  <small>Continuar ajustando a coeficientes estequiométricos naturales</small>
+                </div>
+              </button>
+            </div>
           </div>
         )}
 

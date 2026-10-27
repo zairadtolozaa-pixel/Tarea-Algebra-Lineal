@@ -1409,6 +1409,59 @@
   transform: translateY(-1px);
 }
 
+/* Fraction Pause Card */
+.fraction-pause-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(15, 23, 42, 0.85));
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-top: 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.2);
+}
+
+.fraction-pause-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.fraction-pause-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.fraction-pause-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 4px;
+}
+
+.fraction-pause-subtitle {
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  line-height: 1.45;
+}
+
+.fraction-pause-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.pause-choice-btn {
+  padding: 14px 18px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.pause-choice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
 .context-btn.btn-traffic.active {
   background: rgba(14, 165, 233, 0.2);
   border-color: #38bdf8;

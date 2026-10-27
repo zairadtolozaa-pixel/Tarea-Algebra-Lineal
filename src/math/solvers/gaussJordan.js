@@ -87,6 +87,55 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
           M[r][c] = M[r][c].sub(factor.mul(M[leadRow][c]));
         }
 
+        // Check if this operation created fractions in matrix M
+        let createdFraction = false;
+        for (let ri = 0; ri < m; ri++) {
+          for (let ci = 0; ci <= n; ci++) {
+            if (M[ri][ci].d !== 1n) {
+              createdFraction = true;
+              break;
+            }
+          }
+          if (createdFraction) break;
+        }
+
+        // If fractions appeared and NO context has been selected yet, PAUSE at this exact point!
+        if (createdFraction && !options.context) {
+          return {
+            status: 'fraction_pause',
+            statusText: 'Fracción / Decimal detectado — Selección de Contexto Requerida',
+            methodId: 'gaussJordan',
+            pausedStepIndex: steps.length,
+            steps,
+            summary: `En este paso del método de Gauss-Jordan se generó una fracción (${factor.toTex()}). Para continuar y asegurar que el desarrollo y resultado sean números enteros / naturales, elige el flujo de aplicación:`
+          };
+        }
+
+        // If context IS selected (vehicular o quimico), clear fractions immediately by multiplying row r by its LCM
+        if (createdFraction && options.context) {
+          let rowLcm = 1n;
+          for (let ci = 0; ci <= n; ci++) {
+            let a = rowLcm, b = M[r][ci].d;
+            while (b !== 0n) { const t = b; b = a % b; a = t; }
+            rowLcm = (rowLcm / a) * M[r][ci].d;
+          }
+          if (rowLcm > 1n) {
+            const scaleFrac = new Fraction(rowLcm, 1n);
+            for (let ci = 0; ci <= n; ci++) {
+              M[r][ci] = M[r][ci].mul(scaleFrac);
+            }
+            steps.push({
+              title: `Ajuste (${options.context === 'vehicular' ? 'Flujo vehicular' : 'Balance químico'}): Multiplicar Fila ${r + 1} por ${rowLcm}`,
+              description: `Se multiplica la Fila ${r + 1} por ${rowLcm} para eliminar fracciones y mantener números enteros/naturales.`,
+              operation: `\\text{Fila } ${r + 1} \\to (${rowLcm}) \\cdot \\text{Fila } ${r + 1}`,
+              latex: matrixToTex(M, { isAugmented: true }),
+              matrix: cloneMatrix(M),
+              highlightRows: [r]
+            });
+            continue;
+          }
+        }
+
         const factorTex = factor.abs().toTex();
         const opTex = factor.isNegative()
           ? `\\text{Fila } ${r + 1} + (${factorTex}) \\cdot \\text{Fila } ${leadRow + 1}`
@@ -199,13 +248,52 @@ export function solveGaussJordan(matrixA, vectorB, options = {}) {
     });
   }
 
+  // If a context was chosen (vehicular o quimico), scale solution to positive integers/natural numbers!
+  let finalSolution = solution;
+  if (options.context) {
+    let solLcm = 1n;
+    for (const item of solution) {
+      if (item.fraction.d !== 0n) {
+        let a = solLcm, b = item.fraction.d;
+        while (b !== 0n) { const t = b; b = a % b; a = t; }
+        solLcm = (solLcm / a) * item.fraction.d;
+      }
+    }
+    if (solLcm > 1n) {
+      finalSolution = solution.map(item => {
+        const scaled = item.fraction.mul(new Fraction(solLcm, 1n));
+        return {
+          variable: item.variable,
+          fraction: scaled,
+          tex: scaled.toTex(),
+          decimal: scaled.toDecimalString()
+        };
+      });
+    }
+    const allNeg = finalSolution.every(item => item.fraction.isNegative() || item.fraction.isZero());
+    if (allNeg) {
+      finalSolution = finalSolution.map(item => {
+        const pos = item.fraction.neg();
+        return {
+          variable: item.variable,
+          fraction: pos,
+          tex: pos.toTex(),
+          decimal: pos.toDecimalString()
+        };
+      });
+    }
+  }
+
   return {
     status: 'determinado',
     statusText: 'Sistema Compatible Determinado (Solución Única)',
     rankA,
     rankM,
-    solution,
+    context: options.context || null,
+    solution: finalSolution,
     steps,
-    summary: `El rango de la matriz es igual al número de incógnitas (rango = ${rankA} = ${n}). La solución se lee directamente de la RREF.`
+    summary: options.context
+      ? `Solución reorientada para ${options.context === 'vehicular' ? 'Flujo Vehicular' : 'Balance Químico'}. Se ajustó el sistema para entregar valores enteros / naturales exactos.`
+      : `El rango de la matriz es igual al número de incógnitas (rango = ${rankA} = ${n}). La solución se lee directamente de la RREF.`
   };
 }
